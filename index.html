@@ -1284,6 +1284,7 @@ body.printing-report .print-report-header{
   <div class="modal-head"><h3><i class="fas fa-laptop" style="color:var(--accent)"></i> <span id="prod-modal-title">منتج جديد</span></h3><button class="close-btn" onclick="closeModal('modal-product')"><i class="fas fa-times"></i></button></div>
   <div class="modal-body">
     <div class="form-row form-row-2 mb-3"><div class="fg"><label>اسم المنتج * <span style="font-size:10px;color:var(--text2);">(اسم مختصر للنظام)</span></label><input class="fc" id="pf-name" placeholder="مثال: Dell Inspiron"></div><div class="fg"><label>الكود / الباركود</label><input class="fc" id="pf-code" placeholder="مثال: LP-001"></div></div>
+    <div class="form-row mb-3"><div class="fg"><label>السيريال نمبر (Serial Number) <span style="font-size:10px;color:var(--accent);">⭐ يظهر في الفاتورة قبل الباركود</span></label><input class="fc" id="pf-serial" placeholder="مثال: SN-ABC123456789"></div></div>
     <div class="form-row form-row-2 mb-3"><div class="fg"><label>الفئة</label><select class="fc" id="pf-cat"></select></div><div class="fg"><label>المخزن *</label><select class="fc" id="pf-wh"></select></div></div>
     <div class="form-row form-row-2 mb-3"><div class="fg"><label>الكمية الحالية</label><input class="fc" id="pf-qty" type="number" value="0" min="0"></div><div class="fg"><label>الحد الأدنى للتنبيه</label><input class="fc" id="pf-min" type="number" value="5" min="0"></div></div>
     <div class="form-row form-row-2 mb-3"><div class="fg"><label>سعر الشراء (EGP)</label><input class="fc" id="pf-cost" type="number" placeholder="0.00" step="0.01" min="0"></div><div class="fg"><label>سعر البيع (EGP)</label><input class="fc" id="pf-price" type="number" placeholder="0.00" step="0.01" min="0"></div></div>
@@ -2571,7 +2572,7 @@ async function completeSale(){
     date:new Date().toISOString(),
     custId,custName:custId?(S.customers[custId]?.name||'نقدي'):'عميل نقدي',
     customerName:custId?(S.customers[custId]?.name||'نقدي'):'عميل نقدي',
-    items:cart.map(i=>({prodId:i.prodId,name:i.name,desc:i.desc||'',qty:i.qty,price:i.price,cost:i.cost,whId:i.whId})),
+    items:cart.map(i=>({prodId:i.prodId,name:i.name,desc:i.desc||'',serial:S.products[i.prodId]?.serial||'',qty:i.qty,price:i.price,cost:i.cost,whId:i.whId})),
     subtotal:sub,discount:dv,tax:tv,total,amountPaid:paid,amtPaid:paid,
     balance:Math.max(0,total-paid),
     paymentMethod:payMethod,payMethod,
@@ -2723,7 +2724,9 @@ function showInvoice(sale,exportPdf=false){
   const items=(sale.items||[]).map(item=>({
     ...item,
     // إذا لم يكن الوصف محفوظاً في الفاتورة، نجلبه من قاعدة بيانات المنتجات
-    desc: item.desc!==undefined ? item.desc : (S.products[item.prodId]?.desc||'')
+    desc: item.desc!==undefined ? item.desc : (S.products[item.prodId]?.desc||''),
+    // السيريال نمبر من قاعدة بيانات المنتجات
+    serial: item.serial!==undefined ? item.serial : (S.products[item.prodId]?.serial||'')
   }));
   const invNum=sale.id?sale.id.slice(-6).toUpperCase():'------';
   const dateStr=sale.date?(new Date(sale.date)).toLocaleDateString('ar-EG'):'';
@@ -2859,8 +2862,8 @@ function showInvoice(sale,exportPdf=false){
           ${showQty?`<td style="padding:8px 12px;">${item.qty}</td>`:''}
           ${showPrice?`<td style="padding:8px 12px;">${N(item.price)} ${st.curr||'EGP'}</td>`:''}
           ${showTotal?`<td style="padding:8px 12px;font-weight:700;">${N((item.price||0)*(item.qty||0))} ${st.curr||'EGP'}</td>`:''}
-          ${showDisc?`<td style="padding:8px 12px;">-</td>`:''}
-          ${showSerial?`<td style="padding:8px 12px;">-</td>`:''}
+          ${showDisc?`<td style="padding:8px 12px;color:#c00;">${(()=>{const itemTotal=(item.price||0)*(item.qty||0);const sub=sale.subtotal||sale.total;const disc=sale.discount||0;if(!disc||!sub)return '-';const itemDisc=itemTotal/sub*disc;return itemDisc>0?'- '+N(itemDisc)+' '+(st.curr||'EGP'):'-';})()}</td>`:''}
+          ${showSerial?`<td style="padding:8px 12px;font-size:10px;color:#333;">${item.serial||'-'}</td>`:''}
         </tr>`).join('')}
       </tbody>
     </table>
@@ -2883,8 +2886,10 @@ function showInvoice(sale,exportPdf=false){
           <div style="background:#f9f5f0;border-radius:8px;padding:10px;border:1px solid #ddd;">
             <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:#000000;">${summaryLabel}</div>
             <div style="font-size:11px;color:#000;margin-bottom:2px;">الإجمالي: <strong>${N(sale.subtotal||sale.total)}</strong></div>
-            <div style="font-size:11px;color:#000;">الصافي بعد الخصم: <strong>${N((sale.subtotal||sale.total)-(sale.discount||0))}</strong></div>
-            <div style="font-size:11px;color:#000;">الإجمالي النهائي: <strong>${N(sale.total)}</strong></div>
+            <div style="font-size:11px;color:#c00;margin-bottom:2px;">الخصم: <strong>- ${N(sale.discount||0)}</strong></div>
+            <div style="font-size:11px;color:#000;margin-bottom:2px;">الإجمالي بعد الخصم: <strong>${N((sale.subtotal||sale.total)-(sale.discount||0))}</strong></div>
+            <div style="font-size:11px;color:#555;margin-bottom:2px;">الضريبة: <strong>+ ${N(sale.tax||0)}</strong></div>
+            <div style="font-size:11px;color:#000;font-weight:700;">الإجمالي بعد الضريبة: <strong>${N(sale.total)}</strong></div>
           </div>
           <div style="background:#f9f5f0;border-radius:8px;padding:10px;border:1px solid #ddd;">
             <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:#000000;">${paymentLabel}</div>
@@ -3034,8 +3039,8 @@ function showInvoice(sale,exportPdf=false){
         ${showQty?`<td class="inv-items-td">${item.qty}</td>`:''}
         ${showPrice?`<td class="inv-items-td">${N(item.price)} ${st.curr||'EGP'}</td>`:''}
         ${showTotal?`<td class="inv-items-td" style="font-weight:700;">${N((item.price||0)*(item.qty||0))} ${st.curr||'EGP'}</td>`:''}
-        ${showDisc?`<td class="inv-items-td">-</td>`:''}
-        ${showSerial?`<td class="inv-items-td">-</td>`:''}
+        ${showDisc?`<td class="inv-items-td" style="color:#c00;">${(()=>{const itemTotal=(item.price||0)*(item.qty||0);const sub=sale.subtotal||sale.total;const disc=sale.discount||0;if(!disc||!sub)return '-';const itemDisc=itemTotal/sub*disc;return itemDisc>0?'- '+N(itemDisc)+' '+(st.curr||'EGP'):'-';})()}</td>`:''}
+        ${showSerial?`<td class="inv-items-td" style="font-size:10px;">${item.serial||'-'}</td>`:''}
       </tr>`).join('')}
     </tbody>
   </table>
@@ -3057,8 +3062,10 @@ function showInvoice(sale,exportPdf=false){
       <div class="inv-summary-box">
         <div class="inv-summary-title">${summaryLabel}</div>
         <div class="inv-summary-row">الإجمالي: <strong>${N(sale.subtotal||sale.total)}</strong></div>
-        <div class="inv-summary-row">الصافي بعد الخصم: <strong>${N((sale.subtotal||sale.total)-(sale.discount||0))}</strong></div>
-        <div class="inv-summary-row">الإجمالي النهائي: <strong>${N(sale.total)}</strong></div>
+        <div class="inv-summary-row" style="color:#c00;">الخصم: <strong>- ${N(sale.discount||0)}</strong></div>
+        <div class="inv-summary-row">الإجمالي بعد الخصم: <strong>${N((sale.subtotal||sale.total)-(sale.discount||0))}</strong></div>
+        <div class="inv-summary-row" style="color:#555;">الضريبة: <strong>+ ${N(sale.tax||0)}</strong></div>
+        <div class="inv-summary-row" style="font-weight:700;">الإجمالي بعد الضريبة: <strong>${N(sale.total)}</strong></div>
       </div>
       <div class="inv-summary-box">
         <div class="inv-summary-title">${paymentLabel}</div>
@@ -3460,6 +3467,7 @@ function editProduct(id){
   document.getElementById('prod-modal-title').textContent='تعديل منتج';
   document.getElementById('pf-name').value=p.name||'';
   document.getElementById('pf-code').value=p.code||'';
+  document.getElementById('pf-serial').value=p.serial||'';
   fillCatSelects();
   document.getElementById('pf-cat').value=p.cat||'laptop';
   updateWhSelects();
@@ -3476,7 +3484,7 @@ async function saveProduct(){
   if(!name){toast('يرجى إدخال اسم المنتج','error');return;}
   const whId=document.getElementById('pf-wh').value;
   const newQty=parseInt(document.getElementById('pf-qty').value)||0;
-  const data={name,code:document.getElementById('pf-code').value.trim(),cat:document.getElementById('pf-cat').value,whId,qty:newQty,min:parseInt(document.getElementById('pf-min').value)||5,cost:parseFloat(document.getElementById('pf-cost').value)||0,price:parseFloat(document.getElementById('pf-price').value)||0,desc:document.getElementById('pf-desc').value.trim(),updatedAt:new Date().toISOString(),updatedBy:getCU()};
+  const data={name,code:document.getElementById('pf-code').value.trim(),serial:document.getElementById('pf-serial').value.trim(),cat:document.getElementById('pf-cat').value,whId,qty:newQty,min:parseInt(document.getElementById('pf-min').value)||5,cost:parseFloat(document.getElementById('pf-cost').value)||0,price:parseFloat(document.getElementById('pf-price').value)||0,desc:document.getElementById('pf-desc').value.trim(),updatedAt:new Date().toISOString(),updatedBy:getCU()};
   try{
     if(editingProd){
       const oldQty=S.products[editingProd]?.qty||0;
@@ -5171,14 +5179,14 @@ function downloadProductTemplate(){
   const cats=getAllCats();
   const catNames=Object.values(cats).map(c=>c.name).join(', ');
   const whNames=Object.values(S.warehouses).map(w=>w.name).join(', ');
-  const headers=[['اسم المنتج *','كود المنتج','الفئة *','المخزن','الكمية','الحد الأدنى','سعر الشراء (EGP) *','سعر البيع (EGP) *','وصف']];
+  const headers=[['اسم المنتج *','كود المنتج','الفئة *','المخزن *','الكمية','الحد الأدنى','سعر الشراء (EGP) *','سعر البيع (EGP) *','وصف','السيريال نمبر']];
   const examples=[
-    ['Laptop Dell Inspiron 15','DELL-INS-001','لابتوب',Object.values(S.warehouses)[0]?.name||'المخزن الرئيسي',10,3,8500,12000,'معالج Core i5 - رام 8GB'],
-    ['iPhone 15 Pro','IPH-15P-128',Object.values(cats)[1]?.name||'موبايل',Object.values(S.warehouses)[0]?.name||'المخزن الرئيسي',5,2,25000,32000,'128GB - أسود تيتانيوم'],
-    ['HP LaserJet Printer','HP-LJ-001',Object.values(cats)[2]?.name||'طابعات',Object.values(S.warehouses)[0]?.name||'المخزن الرئيسي',3,1,2200,3500,'طابعة ليزر أبيض وأسود'],
+    ['Laptop Dell Inspiron 15','DELL-INS-001','لابتوب',Object.values(S.warehouses)[0]?.name||'المخزن الرئيسي',10,3,8500,12000,'معالج Core i5 - رام 8GB','SN-DELL001'],
+    ['iPhone 15 Pro','IPH-15P-128',Object.values(cats)[1]?.name||'موبايل',Object.values(S.warehouses)[1]?.name||Object.values(S.warehouses)[0]?.name||'المخزن الرئيسي',5,2,25000,32000,'128GB - أسود تيتانيوم','SN-IPH001'],
+    ['HP LaserJet Printer','HP-LJ-001',Object.values(cats)[2]?.name||'طابعات',Object.values(S.warehouses)[0]?.name||'المخزن الرئيسي',3,1,2200,3500,'طابعة ليزر أبيض وأسود',''],
   ];
   const ws=XLSX.utils.aoa_to_sheet([...headers,...examples]);
-  ws['!cols']=[{wch:28},{wch:18},{wch:18},{wch:20},{wch:10},{wch:12},{wch:18},{wch:18},{wch:35}];
+  ws['!cols']=[{wch:28},{wch:18},{wch:18},{wch:20},{wch:10},{wch:12},{wch:18},{wch:18},{wch:35},{wch:20}];
   XLSX.utils.book_append_sheet(wb,ws,'المنتجات');
   // Info sheet
   const infoData=[
@@ -5187,13 +5195,17 @@ function downloadProductTemplate(){
     ['الحقل','إلزامي؟','الوصف'],
     ['اسم المنتج','✅ نعم','اسم المنتج كما سيظهر في النظام'],
     ['كود المنتج','اختياري','كود/باركود المنتج (فريد)'],
-    ['الفئة','✅ نعم','اسم الفئة - يجب أن تكون موجودة مسبقاً: '+catNames],
-    ['المخزن','اختياري','اسم المخزن: '+whNames],
+    ['الفئة','✅ نعم','اسم الفئة لكل منتج على حدة - يجب أن تكون موجودة مسبقاً: '+catNames],
+    ['المخزن','✅ مهم','اسم المخزن لكل منتج على حدة - كل منتج يأخذ مخزنه الخاص: '+whNames],
     ['الكمية','اختياري','الكمية الابتدائية في المخزن (رقم)'],
     ['الحد الأدنى','اختياري','الحد الأدنى للتنبيه بنقص المخزون'],
     ['سعر الشراء','✅ نعم','سعر شراء المنتج بالجنيه المصري'],
     ['سعر البيع','✅ نعم','سعر بيع المنتج بالجنيه المصري'],
     ['وصف','اختياري','وصف مختصر للمنتج'],
+    ['السيريال نمبر','اختياري','الرقم التسلسلي للجهاز - يظهر في الفاتورة'],
+    [''],
+    ['⚠️ مهم: كل منتج يجب أن يحتوي على اسم الفئة والمخزن الخاصين به'],
+    ['لا يتم استخدام فئة أو مخزن موحد لكل المنتجات - كل منتج مستقل'],
     [''],
     ['الفئات المتاحة:',catNames],
     ['المخازن المتاحة:',whNames||'لا توجد مخازن - أضف مخزناً أولاً'],
@@ -5236,11 +5248,14 @@ async function importProductsFromExcel(event){
       const price=parseFloat(row[7])||0;
       const desc=String(row[8]||'').trim();
       if(!name){continue;}
-      // Find category ID
-      const catId=catMap[catName?.toLowerCase()]||Object.keys(cats)[0]||'laptop';
-      // Find warehouse ID
-      const whId=whMap[whName?.toLowerCase()]||Object.keys(S.warehouses)[0]||'';
-      const prodData={name,code,cat:catId,whId,qty,min,cost,price,desc,updatedAt:new Date().toISOString()};
+      // Find category ID - use exact match only, no fallback to first category
+      const catId=catMap[catName?.toLowerCase()]||(catName?null:Object.keys(cats)[0]||'laptop');
+      // Find warehouse ID - use exact match only, no fallback
+      const whId=whMap[whName?.toLowerCase()]||(whName?'':Object.keys(S.warehouses)[0]||'');
+      // Warn if category/warehouse not found but name was provided
+      if(catName&&!catMap[catName?.toLowerCase()]){errors.push(`المنتج "${name}": الفئة "${catName}" غير موجودة - سيتم استخدام الفئة الافتراضية`);}
+      if(whName&&!whMap[whName?.toLowerCase()]){errors.push(`المنتج "${name}": المخزن "${whName}" غير موجود - سيتم تجاهل المخزن`);}
+      const prodData={name,code,cat:catId||'laptop',whId,qty,min,cost,price,desc,serial:String(row[9]||'').trim(),updatedAt:new Date().toISOString()};
       try{
         // Check if product exists by code or name
         const existing=code
