@@ -266,9 +266,36 @@ textarea.fc{resize:vertical;}
 /* Print */
 #inv-print-area{display:none;}
 @media print{
+  html,body{height:auto!important;overflow:visible!important;}
   body *{visibility:hidden;}
   #inv-print-area,#inv-print-area *{visibility:visible;}
-  #inv-print-area{position:fixed;inset:0;display:block!important;background:#fff;z-index:99999;}
+  #inv-print-area{
+    position:absolute!important;
+    top:0!important;left:0!important;right:0!important;
+    inset:unset!important;
+    width:100%!important;
+    height:auto!important;
+    display:block!important;
+    background:#fff!important;
+    z-index:99999!important;
+    overflow:visible!important;
+  }
+  /* Allow invoice content to flow across pages */
+  #inv-print-area .inv-wrap,
+  #inv-print-area > *{
+    overflow:visible!important;
+    height:auto!important;
+    max-height:none!important;
+  }
+  /* Keep header/footer on every page if needed */
+  #inv-print-area table{page-break-inside:auto;}
+  #inv-print-area tr{page-break-inside:avoid;page-break-after:auto;}
+  #inv-print-area thead{display:table-header-group;}
+  #inv-print-area tfoot{display:table-footer-group;}
+  /* Summary & footer should not break apart */
+  #inv-print-area .inv-summary-grid,
+  #inv-print-area .inv-warranty,
+  #inv-print-area .inv-footer{page-break-inside:avoid;break-inside:avoid;}
   #inv-print-area a{text-decoration:none!important;color:inherit!important;pointer-events:none;}
   /* Hide any links/URLs that browsers add */
   @page{margin:12mm 10mm;}
@@ -2847,15 +2874,15 @@ function showInvoice(sale,exportPdf=false){
     </div>
 
     <!-- Items Table -->
-    <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto;">
+      <thead style="display:table-header-group;">
         <tr style="background:#fff;color:#000;border-bottom:2px solid #000000;border-top:1px solid #000000;">
           ${thCols}
         </tr>
       </thead>
       <tbody>
         ${items.map((item,i)=>`
-        <tr style="background:${i%2===0?'#ffffff':'#faf6f1'};border-bottom:1px solid #e0d5c8;color:#000;">
+        <tr style="background:${i%2===0?'#ffffff':'#faf6f1'};border-bottom:1px solid #e0d5c8;color:#000;page-break-inside:avoid;break-inside:avoid;">
           ${showSeq?`<td style="padding:8px 12px;">${i+1}</td>`:''}
           ${showName?`<td style="padding:8px 12px;font-weight:600;">${item.name}${item.desc?`<br><span style="font-weight:400;font-size:10px;color:#000;">${item.desc}</span>`:''}</td>`:''}
           ${showWh?`<td style="padding:8px 12px;">${whName}</td>`:''}
@@ -2869,7 +2896,7 @@ function showInvoice(sale,exportPdf=false){
     </table>
 
     <!-- Salesperson + Terms + Totals -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;border-top:2px solid #000000;background:#fff;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-top:2px solid #000000;background:#fff;page-break-inside:avoid;break-inside:avoid;">
       <div style="padding:14px 20px;border-left:1px solid #ddd;">
         ${showSalesman?`<div style="font-size:11px;margin-bottom:5px;"><span style="color:#000;">مسؤول البيع: </span><strong style="color:#000;">${salesman}</strong></div>`:''}
         <div style="font-size:11px;margin-bottom:5px;"><span style="color:#000;">طريقة الدفع: </span><strong style="color:#000;">${PAY_NAMES[sale.paymentMethod]||sale.paymentMethod||'-'}</strong></div>
@@ -2915,7 +2942,7 @@ function showInvoice(sale,exportPdf=false){
     </div>`:''}
 
     <!-- Footer -->
-    <div style="border-top:2px solid #000000;background:#fff;color:#000;padding:10px 20px;text-align:center;font-size:10.5px;">
+    <div style="border-top:2px solid #000000;background:#fff;color:#000;padding:10px 20px;text-align:center;font-size:10.5px;page-break-inside:avoid;break-inside:avoid;">
       <strong style="color:#000000;">${footerText}</strong> &nbsp;|&nbsp; ${st.company||'Computer Technology Group'} &nbsp;|&nbsp; ${st.web||''} &nbsp;|&nbsp; 📞 ${st.phone||''}
       ${st.bank?`<br>البنك: ${st.bank} | SWIFT: ${st.swift||'-'} | حساب: ${st.account||'-'}`:``}
       ${footerExtra?`<br>${footerExtra}`:''}
@@ -2955,12 +2982,18 @@ function showInvoice(sale,exportPdf=false){
   .inv-order-bar{background:#f9f5f0;padding:8px 20px;border-bottom:1px solid #ddd;}
   .inv-order-table{width:100%;font-size:10.5px;border-collapse:collapse;}
   .inv-order-table td{padding:2px 8px;}
-  .inv-items-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .inv-items-table{width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto;}
+  .inv-items-table thead{display:table-header-group;}
+  .inv-items-table tfoot{display:table-footer-group;}
+  .inv-items-table tbody tr{page-break-inside:avoid;break-inside:avoid;}
   .inv-items-thead th{background:#fff;color:#000;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #000000;border-top:1px solid #000000;}
   .inv-items-td{padding:8px 12px;border-bottom:1px solid #e0d5c8;}
   .inv-items-even{background:#fff;}
   .inv-items-odd{background:#faf6f1;}
-  .inv-summary-grid{display:grid;grid-template-columns:1fr 1fr;border-top:2px solid #000000;}
+  .inv-header{page-break-inside:avoid;break-inside:avoid;}
+  .inv-info-grid{page-break-inside:avoid;break-inside:avoid;}
+  .inv-order-bar{page-break-inside:avoid;break-inside:avoid;}
+  .inv-summary-grid{display:grid;grid-template-columns:1fr 1fr;border-top:2px solid #000000;page-break-inside:avoid;break-inside:avoid;}
   .inv-summary-left{padding:14px 20px;border-left:1px solid #ddd;}
   .inv-summary-right{padding:14px 20px;}
   .inv-summary-box{background:#f9f5f0;border-radius:8px;padding:10px;border:1px solid #ddd;margin-bottom:8px;}
@@ -2969,10 +3002,10 @@ function showInvoice(sale,exportPdf=false){
   .inv-total-box{background:#fff;border:2px solid #000000;border-radius:8px;padding:12px;text-align:center;}
   .inv-total-label{font-size:11px;color:#000;}
   .inv-total-amount{font-size:22px;font-weight:900;color:#000000;}
-  .inv-warranty{border-top:2px solid #000000;padding:12px 20px;background:#fdf8f0;}
+  .inv-warranty{border-top:2px solid #000000;padding:12px 20px;background:#fdf8f0;page-break-inside:avoid;break-inside:avoid;}
   .inv-warranty-title{font-size:11px;font-weight:700;margin-bottom:6px;color:#000000;}
   .inv-warranty-text{font-size:10px;color:#000;line-height:1.9;}
-  .inv-footer{border-top:2px solid #000000;padding:10px 20px;text-align:center;font-size:10.5px;color:#000;background:#fff;}
+  .inv-footer{border-top:2px solid #000000;padding:10px 20px;text-align:center;font-size:10.5px;color:#000;background:#fff;page-break-inside:avoid;break-inside:avoid;}
   .inv-footer strong{color:#000000;}
   .lbl{color:#000;}
 </style>
