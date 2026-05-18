@@ -603,8 +603,8 @@ body.printing-report .print-report-header{
         </div>
         <div class="pos-foot">
           <div class="total-row"><span>المجموع:</span><span id="pos-sub">0.00 EGP</span></div>
-          <div class="total-row"><span>خصم: <input type="number" id="pos-disc" value="0" min="0" max="100" style="width:44px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:1px 4px;font-size:11px;" oninput="calcCart()">%</span><span id="pos-disc-v" style="color:var(--red);">-0.00</span></div>
-          <div class="total-row"><span>ضريبة: <input type="number" id="pos-tax" value="0" min="0" max="100" style="width:44px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:1px 4px;font-size:11px;" oninput="calcCart()">%</span><span id="pos-tax-v">+0.00</span></div>
+          <div class="total-row" style="align-items:center;gap:6px;"><span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"><span style="font-size:13px;font-weight:700;">خصم:</span><input type="number" id="pos-disc" value="0" min="0" style="width:72px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 8px;font-size:14px;font-weight:700;" oninput="calcCart()"><select id="pos-disc-type" style="background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:4px 6px;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;" onchange="calcCart()"><option value="percent">%</option><option value="fixed">ج.م</option></select></span><span id="pos-disc-v" style="color:var(--red);font-size:13px;font-weight:700;">-0.00</span></div>
+          <div class="total-row" style="align-items:center;gap:6px;"><span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"><span style="font-size:13px;font-weight:700;">ضريبة:</span><input type="number" id="pos-tax" value="0" min="0" style="width:72px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:5px 8px;font-size:14px;font-weight:700;" oninput="calcCart()"><select id="pos-tax-type" style="background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:4px 6px;font-size:13px;font-family:'Cairo',sans-serif;cursor:pointer;" onchange="calcCart()"><option value="percent">%</option><option value="fixed">ج.م</option></select></span><span id="pos-tax-v" style="font-size:13px;font-weight:700;">+0.00</span></div>
           <div class="grand-row"><span>الإجمالي:</span><span id="pos-total">0.00 EGP</span></div>
           <div class="flex gap-2" style="gap:7px;margin-bottom:7px;">
             <select class="fc" id="pos-pay" style="flex:1;" onchange="updatePosPayCashbox()">
@@ -952,6 +952,28 @@ body.printing-report .print-report-header{
           <div class="fg"><label>العملة</label><select class="fc" id="s-curr"><option value="EGP">جنيه مصري (EGP)</option><option value="USD">دولار (USD)</option><option value="SAR">ريال (SAR)</option></select></div>
           <div class="fg"><label>مدة الضمان (أشهر)</label><input class="fc" id="s-warranty" type="number" value="3" min="1"></div>
         </div>
+        <div class="form-row form-row-2 mb-3">
+          <div class="fg">
+            <label>الخصم الافتراضي في نقطة البيع</label>
+            <div style="display:flex;gap:7px;align-items:center;">
+              <input class="fc" id="s-default-disc" type="number" value="0" min="0" placeholder="0" style="flex:1;">
+              <select class="fc" id="s-default-disc-type" style="width:90px;">
+                <option value="percent">نسبة %</option>
+                <option value="fixed">مبلغ ثابت</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg">
+            <label>الضريبة الافتراضية في نقطة البيع</label>
+            <div style="display:flex;gap:7px;align-items:center;">
+              <input class="fc" id="s-default-tax" type="number" value="0" min="0" placeholder="0" style="flex:1;">
+              <select class="fc" id="s-default-tax-type" style="width:90px;">
+                <option value="percent">نسبة %</option>
+                <option value="fixed">مبلغ ثابت</option>
+              </select>
+            </div>
+          </div>
+        </div>
         <div class="form-row mb-3"><div class="fg"><label>بيانات البنك</label><input class="fc" id="s-bank" placeholder="اسم البنك"></div></div>
         <div class="form-row form-row-2 mb-3">
           <div class="fg"><label>رقم الحساب</label><input class="fc" id="s-account"></div>
@@ -1033,7 +1055,6 @@ body.printing-report .print-report-header{
     </div>
     <div class="card">
       <div class="tbl-wrap"><table><thead><tr><th>المستخدم</th><th>الاسم الكامل</th><th>الدور</th><th>الحالة</th><th>آخر دخول</th><th>إجراءات</th></tr></thead><tbody id="users-tbl"></tbody></table></div>
-    <div style="margin-top:10px;font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;"><i class="fas fa-info-circle"></i> ملاحظة: بعض الحسابات النظامية مخفية ولا تظهر في هذه القائمة.</div>
     </div>
   </div>
 
@@ -1777,7 +1798,20 @@ function nav(name){
   if(name==='reports') setPeriod('month');
   if(name==='debts') renderDebtsPage();
   if(name==='users') renderUsers();
-  if(name==='pos') setTimeout(()=>document.getElementById('pos-scan-input')?.focus(),100);
+  if(name==='pos'){
+    setTimeout(()=>document.getElementById('pos-scan-input')?.focus(),100);
+    // تحميل القيم الافتراضية من الإعدادات
+    const st=S.settings||{};
+    const discEl=document.getElementById('pos-disc');
+    const discTypeEl=document.getElementById('pos-disc-type');
+    const taxEl=document.getElementById('pos-tax');
+    const taxTypeEl=document.getElementById('pos-tax-type');
+    if(discEl&&!parseFloat(discEl.value)){discEl.value=st.defaultDisc||0;}
+    if(discTypeEl&&st.defaultDiscType){discTypeEl.value=st.defaultDiscType;}
+    if(taxEl&&!parseFloat(taxEl.value)){taxEl.value=st.defaultTax||0;}
+    if(taxTypeEl&&st.defaultTaxType){taxTypeEl.value=st.defaultTaxType;}
+    calcCart();
+  }
   if(name==='settings') setTimeout(updateBackupInfo,300);
 }
 // alias used by cashier sidebar
@@ -2502,9 +2536,12 @@ function clearCart(){cart=[];renderCart();}
 
 function calcCart(){
   const sub=cart.reduce((s,i)=>s+i.price*i.qty,0);
-  const disc=parseFloat(document.getElementById('pos-disc')?.value)||0;
-  const tax=parseFloat(document.getElementById('pos-tax')?.value)||0;
-  const dv=sub*disc/100;const tv=(sub-dv)*tax/100;
+  const discVal=parseFloat(document.getElementById('pos-disc')?.value)||0;
+  const taxVal=parseFloat(document.getElementById('pos-tax')?.value)||0;
+  const discType=document.getElementById('pos-disc-type')?.value||'percent';
+  const taxType=document.getElementById('pos-tax-type')?.value||'percent';
+  const dv=discType==='fixed'?Math.min(discVal,sub):sub*discVal/100;
+  const tv=taxType==='fixed'?taxVal:(sub-dv)*taxVal/100;
   const total=sub-dv+tv;
   document.getElementById('pos-sub').textContent=N(sub)+' EGP';
   document.getElementById('pos-disc-v').textContent='-'+N(dv)+' EGP';
@@ -3877,6 +3914,10 @@ function loadSettingsUI(){
   document.getElementById('s-bank').value=cfg.bank||'';
   document.getElementById('s-account').value=cfg.account||'';
   document.getElementById('s-swift').value=cfg.swift||'';
+  document.getElementById('s-default-disc').value=cfg.defaultDisc||0;
+  document.getElementById('s-default-disc-type').value=cfg.defaultDiscType||'percent';
+  document.getElementById('s-default-tax').value=cfg.defaultTax||0;
+  document.getElementById('s-default-tax-type').value=cfg.defaultTaxType||'percent';
 }
 async function saveSettings(){
   S.settings={
@@ -3888,7 +3929,11 @@ async function saveSettings(){
     warranty:parseInt(document.getElementById('s-warranty').value)||3,
     bank:document.getElementById('s-bank').value.trim(),
     account:document.getElementById('s-account').value.trim(),
-    swift:document.getElementById('s-swift').value.trim()
+    swift:document.getElementById('s-swift').value.trim(),
+    defaultDisc:parseFloat(document.getElementById('s-default-disc').value)||0,
+    defaultDiscType:document.getElementById('s-default-disc-type').value||'percent',
+    defaultTax:parseFloat(document.getElementById('s-default-tax').value)||0,
+    defaultTaxType:document.getElementById('s-default-tax-type').value||'percent'
   };
   await dbUpdate('settings',S.settings).then(()=>toast('تم حفظ الإعدادات')).catch(e=>toast(e.message,'error'));
 }
