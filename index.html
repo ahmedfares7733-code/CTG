@@ -10,20 +10,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- SW Registration -->
+<!-- Cloud Only Mode -->
 <script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js',{scope:'./'})
-    .then(reg=>{ console.log('SW ready'); })
-    .catch(e=>console.warn('SW failed:',e));
-}
 window._fbAvailable=false;
-window._fbTimeout=setTimeout(()=>{
-  if(!window._fbAvailable){
-    console.warn('Firebase timeout - offline mode');
-    window.dispatchEvent(new Event('fbOffline'));
-  }
-},6000);
 </script>
 <script type="module">
   try{
@@ -34,12 +23,19 @@ window._fbTimeout=setTimeout(()=>{
     window.$db=db;window.$ref=ref;window.$set=set;window.$push=push;
     window.$update=update;window.$remove=remove;window.$onValue=onValue;
     window._fbAvailable=true;
-    clearTimeout(window._fbTimeout);
     window.dispatchEvent(new Event('fbReady'));
   }catch(e){
-    console.warn('Firebase error:',e);
-    clearTimeout(window._fbTimeout);
-    window.dispatchEvent(new Event('fbOffline'));
+    console.error('Firebase error:',e);
+    // عرض رسالة خطأ واضحة بدلاً من الانتقال لوضع أوف لاين
+    const lp=document.getElementById('loading-msg');
+    if(lp)lp.textContent='خطأ في الاتصال بالسحابة — يرجى التحقق من الاتصال بالإنترنت وإعادة تحميل الصفحة';
+    const lp2=document.getElementById('loading');
+    if(lp2){
+      const errDiv=document.createElement('div');
+      errDiv.style.cssText='margin-top:16px;background:#f851491a;border:1px solid #f85149;border-radius:10px;padding:12px 20px;font-size:12px;color:#f85149;text-align:center;max-width:380px;';
+      errDiv.innerHTML='<i class="fas fa-wifi" style="font-size:20px;display:block;margin-bottom:8px;"></i>تعذّر الاتصال بقاعدة البيانات السحابية<br><br><button onclick="location.reload()" style="background:#f85149;color:#fff;border:none;border-radius:7px;padding:7px 20px;font-family:Cairo,sans-serif;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;">إعادة المحاولة</button>';
+      lp2.appendChild(errDiv);
+    }
   }
 </script>
 <style>
@@ -84,12 +80,13 @@ body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);trans
 .sb-item.active{background:var(--accent-bg);color:var(--accent);border-right-color:var(--accent);}
 .sb-item i{width:16px;text-align:center;font-size:13px;}
 .sb-foot{padding:12px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.sb-status{font-size:10px;color:var(--green);display:flex;align-items:center;gap:5px;}
-.sb-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;}
+.sb-status{font-size:10px;color:var(--green);display:flex;align-items:center;gap:5px;transition:color .3s;}
 .topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
 .topbar-title{font-size:16px;font-weight:700;display:flex;align-items:center;gap:9px;color:var(--text);}
 .topbar-title i{color:var(--accent);}
-.topbar-actions{display:flex;align-items:center;gap:10px;}
+.topbar-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+#conn-indicator{flex-shrink:0;}
+.topbar{flex-wrap:wrap;}
 .clock{font-size:12px;color:var(--text2);font-weight:600;}
 .theme-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;}
 .theme-btn:hover{background:var(--accent-bg);color:var(--accent);}
@@ -202,29 +199,29 @@ textarea.fc{resize:vertical;}
 .role-accountant{background:var(--purple-bg);color:var(--purple);}
 
 /* POS */
-.pos-layout{display:grid;grid-template-columns:1fr 360px;gap:16px;height:calc(100vh - 120px);}
+.pos-layout{display:grid;grid-template-columns:1fr 420px;gap:16px;height:calc(100vh - 120px);}
 .pos-products{display:flex;flex-direction:column;gap:12px;overflow:hidden;}
-.pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;overflow-y:auto;flex:1;align-content:start;}
-.pos-card{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:10px 12px;cursor:pointer;transition:all .18s;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;overflow-y:auto;flex:1;align-content:start;padding-bottom:8px;}
+.pos-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .18s;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:90px;}
 .pos-card:hover{border-color:var(--accent);background:var(--accent-bg);transform:translateY(-2px);}
-.pos-card-icon{font-size:24px;margin-bottom:4px;display:block;line-height:1;}
-.pos-card-name{font-size:12px;font-weight:700;margin-bottom:2px;line-height:1.3;word-break:break-word;}
-.pos-card-price{font-size:13px;font-weight:900;color:var(--accent);}
-.pos-card-stock{font-size:10px;color:var(--text3);margin-top:1px;}
+.pos-card-icon{font-size:28px;margin-bottom:6px;display:block;line-height:1;}
+.pos-card-name{font-size:13px;font-weight:700;margin-bottom:3px;line-height:1.3;word-break:break-word;}
+.pos-card-price{font-size:14px;font-weight:900;color:var(--accent);}
+.pos-card-stock{font-size:11px;color:var(--text3);margin-top:2px;}
 .pos-cart{background:var(--card);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;}
-.pos-cart-head{padding:13px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.pos-cart-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .pos-items{flex:1;overflow-y:auto;padding:10px;}
-.cart-item{display:flex;align-items:center;gap:9px;padding:9px;background:var(--card2);border-radius:9px;margin-bottom:7px;border:1px solid var(--border2);}
+.cart-item{display:flex;align-items:center;gap:9px;padding:10px 11px;background:var(--card2);border-radius:10px;margin-bottom:8px;border:1px solid var(--border2);}
 .cart-item-info{flex:1;min-width:0;}
-.cart-item-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.cart-item-price{font-size:11px;color:var(--accent);}
-.qty-ctrl{display:flex;align-items:center;gap:5px;}
-.qty-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.cart-item-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cart-item-price{font-size:12px;color:var(--accent);margin-top:2px;}
+.qty-ctrl{display:flex;align-items:center;gap:6px;}
+.qty-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
 .qty-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
-.qty-n{font-size:12px;font-weight:700;min-width:18px;text-align:center;}
-.pos-foot{padding:13px 15px;border-top:1px solid var(--border);}
-.total-row{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;color:var(--text2);}
-.grand-row{display:flex;justify-content:space-between;font-size:17px;font-weight:900;color:var(--accent);margin:9px 0 12px;}
+.qty-n{font-size:13px;font-weight:700;min-width:22px;text-align:center;}
+.pos-foot{padding:14px 16px;border-top:1px solid var(--border);}
+.total-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--text2);}
+.grand-row{display:flex;justify-content:space-between;font-size:18px;font-weight:900;color:var(--accent);margin:10px 0 13px;}
 /* Barcode scanner input highlight */
 #pos-scan-input{border:2px solid var(--accent);background:var(--accent-bg);}
 
@@ -265,10 +262,67 @@ textarea.fc{resize:vertical;}
 
 /* Print */
 #inv-print-area{display:none;}
+/* ============================================================ */
+/* RESPONSIVE - إصلاح الشاشات الصغيرة                          */
+/* ============================================================ */
+@media(max-width:900px){
+  .sidebar{transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:500;box-shadow:none;}
+  .sidebar.mob-open{transform:translateX(0);box-shadow:-8px 0 32px rgba(0,0,0,.35);}
+  .main{margin-right:0!important;}
+  #mob-sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:499;backdrop-filter:blur(2px);}
+  #mob-sidebar-overlay.show{display:block;}
+  #mob-menu-btn{display:flex!important;}
+  .topbar-actions{gap:6px!important;flex-wrap:nowrap;overflow-x:auto;}
+  .topbar-actions .clock{display:none;}
+  #conn-indicator{padding:5px 9px!important;font-size:10px!important;}
+  .stats-grid{grid-template-columns:repeat(2,1fr)!important;}
+  .grid-2,.grid-3{grid-template-columns:1fr!important;}
+  .pos-layout{grid-template-columns:1fr!important;height:auto!important;gap:12px;}
+  .pos-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))!important;max-height:55vh;}
+  .pos-cart{min-height:400px;}
+  .bc-layout{grid-template-columns:1fr!important;}
+  .form-row-2,.form-row-3,.form-row-4{grid-template-columns:1fr!important;}
+  .modal{max-width:98vw!important;margin:4px;}
+  .page-content{padding:14px 12px!important;}
+}
+@media(min-width:901px) and (max-width:1200px){
+  .pos-layout{grid-template-columns:1fr 380px;}
+  .pos-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;}
+}
+@media(min-width:901px){
+  #mob-menu-btn{display:none!important;}
+}
 @media print{
+  html,body{height:auto!important;overflow:visible!important;}
   body *{visibility:hidden;}
   #inv-print-area,#inv-print-area *{visibility:visible;}
-  #inv-print-area{position:fixed;inset:0;display:block!important;background:#fff;z-index:99999;}
+  #inv-print-area{
+    position:absolute!important;
+    top:0!important;left:0!important;right:0!important;
+    inset:unset!important;
+    width:100%!important;
+    height:auto!important;
+    display:block!important;
+    background:#fff!important;
+    z-index:99999!important;
+    overflow:visible!important;
+  }
+  /* Allow invoice content to flow across pages */
+  #inv-print-area .inv-wrap,
+  #inv-print-area > *{
+    overflow:visible!important;
+    height:auto!important;
+    max-height:none!important;
+  }
+  /* Keep header/footer on every page if needed */
+  #inv-print-area table{page-break-inside:auto;}
+  #inv-print-area tr{page-break-inside:avoid;page-break-after:auto;}
+  #inv-print-area thead{display:table-header-group;}
+  #inv-print-area tfoot{display:table-footer-group;}
+  /* Summary & footer should not break apart */
+  #inv-print-area .inv-summary-grid,
+  #inv-print-area .inv-warranty,
+  #inv-print-area .inv-footer{page-break-inside:avoid;break-inside:avoid;}
   #inv-print-area a{text-decoration:none!important;color:inherit!important;pointer-events:none;}
   /* Hide any links/URLs that browsers add */
   @page{margin:12mm 10mm;}
@@ -339,12 +393,14 @@ body.printing-report .print-report-header{
 <div class="loading" id="loading">
   <div class="loading-icon">💻</div>
   <h2>Computer Technology Group</h2>
-  <p>جاري تحميل النظام...</p>
+  <p id="loading-msg">جاري تحميل النظام...</p>
   <div class="loading-bar"><div class="loading-fill"></div></div>
+  <div id="loading-offline-hint" style="display:none;"></div>
 </div>
 <div class="toast" id="toast"></div>
 <div id="inv-print-area"></div>
 
+<div id="mob-sidebar-overlay" onclick="toggleMobSidebar()"></div>
 <div class="layout" style="display:none;">
 <nav class="sidebar">
   <div class="sb-head">
@@ -396,10 +452,11 @@ body.printing-report .print-report-header{
 
 <main class="main">
   <div class="topbar">
+    <button id="mob-menu-btn" onclick="toggleMobSidebar()" style="display:none;width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--card2);color:var(--text2);cursor:pointer;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;margin-left:8px;" title="القائمة"><i class="fas fa-bars"></i></button>
     <div class="topbar-title"><i id="pg-icon" class="fas fa-chart-pie"></i><span id="pg-title">لوحة التحكم</span></div>
     <div class="topbar-actions">
       <!-- مؤشر حالة الاتصال - دائماً مرئي في الـ topbar -->
-      <div id="conn-indicator" style="display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;background:var(--green-bg);border:1px solid var(--green);font-size:11px;font-weight:700;color:var(--green);transition:all .3s;cursor:default;" title="حالة الاتصال">
+      <div id="conn-indicator" style="display:flex!important;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;background:var(--green-bg);border:1px solid var(--green);font-size:11px;font-weight:700;color:var(--green);transition:all .3s;cursor:default;visibility:visible!important;opacity:1!important;" title="حالة الاتصال">
         <span id="conn-dot" style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>
         <span id="conn-text">متصل</span>
       </div>
@@ -1416,6 +1473,9 @@ body.printing-report .print-report-header{
         <textarea class="fc" id="qpf-desc" rows="2" placeholder="مثال: Laptop Dell Inspiron 15 - Core i5 - رام 8GB"></textarea>
       </div>
     </div>
+    <div class="form-row mb-3">
+      <div class="fg"><label>السيريال نمبر (Serial Number) <span style="font-size:10px;color:var(--accent);">⭐ يظهر في الفاتورة قبل الباركود</span></label><input class="fc" id="qpf-serial" placeholder="مثال: SN-ABC123456789"></div>
+    </div>
   </div>
   <div class="modal-foot">
     <button class="btn btn-ghost" onclick="closeModal('modal-quick-product')">إلغاء</button>
@@ -1726,23 +1786,29 @@ window.addEventListener('fbReady',()=>{
   FB.$update=window.$update; FB.$remove=window.$remove; FB.$onValue=window.$onValue;
 
   const listen=(path,cb)=>FB.$onValue(FB.$ref(DB,'ctg/'+path),snap=>cb(snap.val()||{}));
-  listen('products',v=>{S.products=v;renderProducts();renderPosGrid();updateDashboard();updateBCSelects();fillCatSelects();renderWarehouses();renderCategories();});
-  listen('customers',v=>{S.customers=v;renderCustomers();updateCustSelects();updateDashboard();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listen('warehouses',v=>{S.warehouses=v;renderWarehouses();updateWhSelects();updateDashboard();});
-  listen('sales',v=>{S.sales=v;renderSales();updateDashboard();updateFinance();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listen('purchases',v=>{S.purchases=v;renderPurchases();renderSuppliers();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listen('expenses',v=>{S.expenses=v;renderExpenses();updateFinance();});
-  listen('suppliers',v=>{S.suppliers=v;renderSuppliers();fillSupSelects();});
-  listen('movements',v=>{S.movements=v;renderMovements();});
-  listen('categories',v=>{S.categories=v;renderCategories();fillCatSelects();renderProducts();});
-  listen('cashboxes',v=>{S.cashboxes=v;renderCashboxes();fillCashboxSelects();});
-  listen('cashboxLog',v=>{S.cashboxLog=v;renderCashboxLog();});
-  listen('settings',v=>{if(v&&v.company){S.settings={...S.settings,...v};loadSettingsUI();if(document.getElementById('pg-inv-settings')?.classList.contains('active'))loadInvSettingsUI();}});
-  listen('users',v=>{S.users=v||{};renderUsers();});
+  // حفظ فوري في IDB عند كل تحديث — يضمن أن الأوف لاين دائماً نسخة حديثة
+  const listenAndSave=(path,cb)=>listen(path,v=>{cb(v);IDB.saveStore(path,v).catch(()=>{});});
+  listenAndSave('products',v=>{S.products=v;renderProducts();renderPosGrid();updateDashboard();updateBCSelects();fillCatSelects();renderWarehouses();renderCategories();});
+  listenAndSave('customers',v=>{S.customers=v;renderCustomers();updateCustSelects();updateDashboard();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+  listenAndSave('warehouses',v=>{S.warehouses=v;renderWarehouses();updateWhSelects();updateDashboard();});
+  listenAndSave('sales',v=>{S.sales=v;renderSales();updateDashboard();updateFinance();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+  listenAndSave('purchases',v=>{S.purchases=v;renderPurchases();renderSuppliers();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+  listenAndSave('expenses',v=>{S.expenses=v;renderExpenses();updateFinance();});
+  listenAndSave('suppliers',v=>{S.suppliers=v;renderSuppliers();fillSupSelects();});
+  listenAndSave('movements',v=>{S.movements=v;renderMovements();});
+  listenAndSave('categories',v=>{S.categories=v;renderCategories();fillCatSelects();renderProducts();});
+  listenAndSave('cashboxes',v=>{S.cashboxes=v;renderCashboxes();fillCashboxSelects();});
+  listenAndSave('cashboxLog',v=>{S.cashboxLog=v;renderCashboxLog();});
+  listen('settings',v=>{if(v&&v.company){S.settings={...S.settings,...v};IDB.saveStore('settings',S.settings).catch(()=>{});loadSettingsUI();if(document.getElementById('pg-inv-settings')?.classList.contains('active'))loadInvSettingsUI();}});
+  listen('users',v=>{S.users=v||{};IDB.saveStore('users',S.users).catch(()=>{});renderUsers();});
 
   setTimeout(async()=>{
     document.getElementById('loading').classList.add('out');
     await initDefaultUsers();
+    // حفظ المستخدمين في IDB فوراً بعد التحميل من Firebase
+    if(S.users&&Object.keys(S.users).length){
+      IDB.saveStore('users',S.users).catch(()=>{});
+    }
     if(!checkSession()){
       document.getElementById('login-screen').style.display='flex';
       document.querySelector('.layout').style.display='none';
@@ -1817,6 +1883,29 @@ function nav(name){
 }
 // alias used by cashier sidebar
 const nav_direct=nav;
+
+// Mobile sidebar toggle
+function toggleMobSidebar(){
+  const sb=document.querySelector('.sidebar');
+  const ov=document.getElementById('mob-sidebar-overlay');
+  if(!sb||!ov)return;
+  const isOpen=sb.classList.contains('mob-open');
+  sb.classList.toggle('mob-open',!isOpen);
+  ov.classList.toggle('show',!isOpen);
+  document.body.style.overflow=isOpen?'':'hidden';
+}
+// Close sidebar on nav item click (mobile)
+document.querySelectorAll('.sb-item').forEach(el=>{
+  el.addEventListener('click',()=>{
+    if(window.innerWidth<=900){
+      const sb=document.querySelector('.sidebar');
+      const ov=document.getElementById('mob-sidebar-overlay');
+      if(sb)sb.classList.remove('mob-open');
+      if(ov)ov.classList.remove('show');
+      document.body.style.overflow='';
+    }
+  });
+});
 
 document.querySelectorAll('.sb-item').forEach(el=>{
   el.addEventListener('click',()=>nav(el.dataset.page));
@@ -2514,18 +2603,18 @@ function addToCart(prodId){
 function renderCart(){
   document.getElementById('cart-count').textContent=cart.length+' منتجات';
   const el=document.getElementById('cart-items');
-  if(!cart.length){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px;"><i class="fas fa-shopping-cart" style="font-size:24px;display:block;margin-bottom:8px;opacity:.4;"></i>اضغط على منتج لإضافته</div>';calcCart();return;}
+  if(!cart.length){el.innerHTML='<div style="text-align:center;padding:32px 16px;color:var(--text3);"><i class="fas fa-shopping-cart" style="font-size:36px;display:block;margin-bottom:12px;opacity:.3;"></i><div style="font-size:13px;font-weight:600;">السلة فارغة</div><div style="font-size:11px;margin-top:4px;">اضغط على أي منتج لإضافته</div></div>';calcCart();return;}
   el.innerHTML=cart.map((it,i)=>`
     <div class="cart-item">
       <div class="cart-item-info">
-        <div class="cart-item-name">${it.name}</div>
-        <div class="cart-item-price">${N(it.price*it.qty)} EGP</div>
+        <div class="cart-item-name" title="${it.name}">${it.name}</div>
+        <div class="cart-item-price">${N(it.price)} EGP × ${it.qty} = <strong style="color:var(--accent);font-size:13px;">${N(it.price*it.qty)} EGP</strong></div>
       </div>
       <div class="qty-ctrl">
-        <button class="qty-btn" onclick="chQty(${i},-1)">−</button>
+        <button class="qty-btn" onclick="chQty(${i},-1)" title="تقليل">−</button>
         <span class="qty-n">${it.qty}</span>
-        <button class="qty-btn" onclick="chQty(${i},1)">+</button>
-        <button class="qty-btn" onclick="rmCart(${i})" style="color:var(--red);">×</button>
+        <button class="qty-btn" onclick="chQty(${i},1)" title="زيادة">+</button>
+        <button class="qty-btn" onclick="rmCart(${i})" style="color:var(--red);font-weight:900;font-size:16px;" title="حذف">×</button>
       </div>
     </div>`).join('');
   calcCart();
@@ -2847,15 +2936,15 @@ function showInvoice(sale,exportPdf=false){
     </div>
 
     <!-- Items Table -->
-    <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto;">
+      <thead style="display:table-header-group;">
         <tr style="background:#fff;color:#000;border-bottom:2px solid #000000;border-top:1px solid #000000;">
           ${thCols}
         </tr>
       </thead>
       <tbody>
         ${items.map((item,i)=>`
-        <tr style="background:${i%2===0?'#ffffff':'#faf6f1'};border-bottom:1px solid #e0d5c8;color:#000;">
+        <tr style="background:${i%2===0?'#ffffff':'#faf6f1'};border-bottom:1px solid #e0d5c8;color:#000;page-break-inside:avoid;break-inside:avoid;">
           ${showSeq?`<td style="padding:8px 12px;">${i+1}</td>`:''}
           ${showName?`<td style="padding:8px 12px;font-weight:600;">${item.name}${item.desc?`<br><span style="font-weight:400;font-size:10px;color:#000;">${item.desc}</span>`:''}</td>`:''}
           ${showWh?`<td style="padding:8px 12px;">${whName}</td>`:''}
@@ -2869,7 +2958,7 @@ function showInvoice(sale,exportPdf=false){
     </table>
 
     <!-- Salesperson + Terms + Totals -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;border-top:2px solid #000000;background:#fff;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-top:2px solid #000000;background:#fff;page-break-inside:avoid;break-inside:avoid;">
       <div style="padding:14px 20px;border-left:1px solid #ddd;">
         ${showSalesman?`<div style="font-size:11px;margin-bottom:5px;"><span style="color:#000;">مسؤول البيع: </span><strong style="color:#000;">${salesman}</strong></div>`:''}
         <div style="font-size:11px;margin-bottom:5px;"><span style="color:#000;">طريقة الدفع: </span><strong style="color:#000;">${PAY_NAMES[sale.paymentMethod]||sale.paymentMethod||'-'}</strong></div>
@@ -2915,7 +3004,7 @@ function showInvoice(sale,exportPdf=false){
     </div>`:''}
 
     <!-- Footer -->
-    <div style="border-top:2px solid #000000;background:#fff;color:#000;padding:10px 20px;text-align:center;font-size:10.5px;">
+    <div style="border-top:2px solid #000000;background:#fff;color:#000;padding:10px 20px;text-align:center;font-size:10.5px;page-break-inside:avoid;break-inside:avoid;">
       <strong style="color:#000000;">${footerText}</strong> &nbsp;|&nbsp; ${st.company||'Computer Technology Group'} &nbsp;|&nbsp; ${st.web||''} &nbsp;|&nbsp; 📞 ${st.phone||''}
       ${st.bank?`<br>البنك: ${st.bank} | SWIFT: ${st.swift||'-'} | حساب: ${st.account||'-'}`:``}
       ${footerExtra?`<br>${footerExtra}`:''}
@@ -2955,12 +3044,18 @@ function showInvoice(sale,exportPdf=false){
   .inv-order-bar{background:#f9f5f0;padding:8px 20px;border-bottom:1px solid #ddd;}
   .inv-order-table{width:100%;font-size:10.5px;border-collapse:collapse;}
   .inv-order-table td{padding:2px 8px;}
-  .inv-items-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .inv-items-table{width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto;}
+  .inv-items-table thead{display:table-header-group;}
+  .inv-items-table tfoot{display:table-footer-group;}
+  .inv-items-table tbody tr{page-break-inside:avoid;break-inside:avoid;}
   .inv-items-thead th{background:#fff;color:#000;padding:9px 12px;text-align:right;font-weight:700;border-bottom:2px solid #000000;border-top:1px solid #000000;}
   .inv-items-td{padding:8px 12px;border-bottom:1px solid #e0d5c8;}
   .inv-items-even{background:#fff;}
   .inv-items-odd{background:#faf6f1;}
-  .inv-summary-grid{display:grid;grid-template-columns:1fr 1fr;border-top:2px solid #000000;}
+  .inv-header{page-break-inside:avoid;break-inside:avoid;}
+  .inv-info-grid{page-break-inside:avoid;break-inside:avoid;}
+  .inv-order-bar{page-break-inside:avoid;break-inside:avoid;}
+  .inv-summary-grid{display:grid;grid-template-columns:1fr 1fr;border-top:2px solid #000000;page-break-inside:avoid;break-inside:avoid;}
   .inv-summary-left{padding:14px 20px;border-left:1px solid #ddd;}
   .inv-summary-right{padding:14px 20px;}
   .inv-summary-box{background:#f9f5f0;border-radius:8px;padding:10px;border:1px solid #ddd;margin-bottom:8px;}
@@ -2969,10 +3064,10 @@ function showInvoice(sale,exportPdf=false){
   .inv-total-box{background:#fff;border:2px solid #000000;border-radius:8px;padding:12px;text-align:center;}
   .inv-total-label{font-size:11px;color:#000;}
   .inv-total-amount{font-size:22px;font-weight:900;color:#000000;}
-  .inv-warranty{border-top:2px solid #000000;padding:12px 20px;background:#fdf8f0;}
+  .inv-warranty{border-top:2px solid #000000;padding:12px 20px;background:#fdf8f0;page-break-inside:avoid;break-inside:avoid;}
   .inv-warranty-title{font-size:11px;font-weight:700;margin-bottom:6px;color:#000000;}
   .inv-warranty-text{font-size:10px;color:#000;line-height:1.9;}
-  .inv-footer{border-top:2px solid #000000;padding:10px 20px;text-align:center;font-size:10.5px;color:#000;background:#fff;}
+  .inv-footer{border-top:2px solid #000000;padding:10px 20px;text-align:center;font-size:10.5px;color:#000;background:#fff;page-break-inside:avoid;break-inside:avoid;}
   .inv-footer strong{color:#000000;}
   .lbl{color:#000;}
 </style>
@@ -4471,6 +4566,8 @@ function doLogin(){
   CURRENT_USER={...user,id:uid_u};
   dbUpdate('users/'+uid_u,{lastLogin:new Date().toISOString()});
   sessionStorage.setItem('ctg-user',JSON.stringify(CURRENT_USER));
+  // حفظ بيانات المستخدمين في IDB لضمان الوصول أوف لاين
+  IDB.saveStore('users',S.users||{}).catch(()=>{});
   showApp();
 }
 
@@ -5539,7 +5636,7 @@ function openQuickAddProduct(){
   if(srcCat&&destCat) destCat.innerHTML=srcCat.innerHTML;
   if(srcWh&&destWh) destWh.innerHTML=srcWh.innerHTML;
   // Clear fields
-  ['qpf-name','qpf-code','qpf-desc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['qpf-name','qpf-code','qpf-desc','qpf-serial'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('qpf-qty').value='0';
   document.getElementById('qpf-min').value='5';
   document.getElementById('qpf-cost').value='';
@@ -5563,6 +5660,7 @@ async function saveQuickProduct(){
     cost:parseFloat(document.getElementById('qpf-cost').value)||0,
     price:parseFloat(document.getElementById('qpf-price').value)||0,
     desc:document.getElementById('qpf-desc').value.trim(),
+    serial:document.getElementById('qpf-serial').value.trim(),
     createdAt:new Date().toISOString(),
     updatedAt:new Date().toISOString()
   };
@@ -5888,6 +5986,7 @@ const OM={
 
   goOnline(){
     this.isOnline=true;
+    if(window.$db) window._fbAvailable=true;
     this.updateUI();
     document.getElementById('offline-badge')?.classList.remove('show');
     toast('🌐 عاد الإنترنت — جاري رفع العمليات المعلقة...','info');
@@ -5913,11 +6012,15 @@ const OM={
         sb.style.color='var(--yellow)';
       }
     }
-    // --- Topbar connection indicator (دائماً مرئي) ---
+    // --- Topbar connection indicator (دائماً مرئي على كل الشاشات) ---
     const ind=document.getElementById('conn-indicator');
     const dot=document.getElementById('conn-dot');
     const txt=document.getElementById('conn-text');
     if(ind&&dot&&txt){
+      // إجبار الإظهار دائماً
+      ind.style.display='flex';
+      ind.style.visibility='visible';
+      ind.style.opacity='1';
       if(this.isOnline){
         ind.style.background='var(--green-bg)';
         ind.style.borderColor='var(--green)';
@@ -5926,6 +6029,8 @@ const OM={
         dot.style.animation='none';
         txt.textContent='متصل';
         ind.title='متصل بالإنترنت';
+        ind.style.cursor='default';
+        ind.onclick=null;
       }else{
         ind.style.background='var(--yellow-bg)';
         ind.style.borderColor='var(--yellow)';
@@ -5979,27 +6084,77 @@ const OM={
     }
   },
 
-  // رفع الطابور إلى Firebase
+  // رفع الطابور إلى Firebase مع مقارنة التاريخ والمستخدم
   async flushQueue(){
     if(this.syncing||!this.isOnline||!window._fbAvailable)return;
     this.syncing=true;
+    const skipped=[];
     try{
       const queue=await IDB.getQueue();
       if(!queue.length){this.syncing=false;return;}
-      toast(`⏫ رفع ${queue.length} عملية معلقة...`,'info');
+      toast(`🔄 مراجعة ${queue.length} عملية معلقة...`,'info');
+
       for(const op of queue){
         try{
-          if(op.type==='set')         await _origDbSet(op.path,op.data);
-          else if(op.type==='push')   await _origDbPush(op.path,op.data);
-          else if(op.type==='update') await _origDbUpdate(op.path,op.data);
-          else if(op.type==='remove') await _origDbRemove(op.path);
-        }catch(e){console.warn('flush op failed:',op.type,e);}
+          // push و remove: ارفع مباشرة بدون مقارنة
+          if(op.type==='push'){  await _origDbPush(op.path,op.data); continue; }
+          if(op.type==='remove'){ await _origDbRemove(op.path); continue; }
+
+          // set / update: قارن التاريخ واسم المستخدم مع السحابة
+          const localTs  = new Date(op.data?.updatedAt||op.data?.createdAt||op.data?.date||0).getTime();
+          const localUser = op.data?.updatedBy||op.data?.createdBy||'';
+          const key = op.path.split('/')[1];
+
+          if(key && localTs>0){
+            const cloudVal = await new Promise(res=>{
+              try{
+                FB.$onValue(FB.$ref(DB,'ctg/'+op.path), s=>res(s.val()), {onlyOnce:true});
+                setTimeout(()=>res(null),4000);
+              }catch(e){res(null);}
+            });
+
+            if(cloudVal){
+              const cloudTs   = new Date(cloudVal.updatedAt||cloudVal.createdAt||cloudVal.date||0).getTime();
+              const cloudUser = cloudVal.updatedBy||cloudVal.createdBy||'';
+
+              if(cloudTs > localTs){
+                // السحابة أحدث تاريخاً
+                console.info(`⏭ تجاهل: السحابة أحدث | المسار: ${op.path} | سحابة: ${cloudUser} @ ${new Date(cloudTs).toLocaleString('ar-EG')} | محلي: ${localUser} @ ${new Date(localTs).toLocaleString('ar-EG')}`);
+                skipped.push({path:op.path, localUser, cloudUser,
+                  localTime:new Date(localTs).toLocaleString('ar-EG'),
+                  cloudTime:new Date(cloudTs).toLocaleString('ar-EG')});
+                continue;
+              }
+              // نفس التاريخ تماماً: لو مستخدم مختلف على سحابة أحدث → تجاهل
+              if(cloudTs===localTs && cloudUser && localUser && cloudUser!==localUser){
+                console.info(`⏭ تجاهل: نفس الوقت مستخدم مختلف | ${op.path}`);
+                skipped.push({path:op.path, localUser, cloudUser,
+                  localTime:new Date(localTs).toLocaleString('ar-EG'),
+                  cloudTime:new Date(cloudTs).toLocaleString('ar-EG')});
+                continue;
+              }
+            }
+          }
+
+          // المحلي أحدث أو لا يوجد سجل على السحابة → ارفع
+          if(op.type==='set')    await _origDbSet(op.path,op.data);
+          else                   await _origDbUpdate(op.path,op.data);
+
+        }catch(e){console.warn('flush op failed:',op.type,op.path,e);}
       }
+
       await IDB.clearQueue();
       updateQueueBadge(0);
-      toast('✅ تمت المزامنة — جميع البيانات رُفعت','success');
+
+      if(skipped.length){
+        console.table(skipped);
+        toast(`✅ مزامنة مكتملة — ${queue.length-skipped.length} عملية رُفعت، ${skipped.length} تجاهلت (السحابة أحدث)`,'info');
+      }else{
+        toast(`✅ تمت المزامنة — ${queue.length} عملية رُفعت بنجاح`,'success');
+      }
     }catch(e){
       toast('⚠️ خطأ في المزامنة','error');
+      console.error('flushQueue error',e);
     }
     this.syncing=false;
   },
@@ -6015,6 +6170,8 @@ const OM={
     }
     if(S.settings?.company)
       await IDB.saveStore('settings',S.settings).catch(()=>{});
+    // حفظ إضافي للإعدادات وبيانات الشركة
+    if(S.settings) await IDB.saveStore('settings',S.settings).catch(()=>{});
   }
 };
 
@@ -6030,106 +6187,33 @@ function _st(path){return(path||'').split('/')[0];}
 function _ky(path){return(path||'').split('/')[1]||null;}
 
 window.dbSet=async function(path,data){
-  const store=_st(path);
-  if(OM.isOnline&&window._fbAvailable){
-    await _origDbSet(path,data);
-  }else{
-    // حفظ في الطابور
-    await IDB.enqueue({type:'set',path,data});
-    // تحديث S مباشرة
-    const k=_ky(path);
-    if(k&&S[store]!==undefined) S[store][k]={...(S[store][k]||{}),...(data||{})};
-    // حفظ في IDB
-    if(S[store]) await IDB.saveStore(store,S[store]).catch(()=>{});
-    // تحديث العداد
-    IDB.getQueue().then(q=>updateQueueBadge(q.length));
-    // إعادة رسم القائمة
-    OM._rerender(store);
-  }
+  await _origDbSet(path,data);
 };
 
 window.dbPush=async function(path,data){
-  const store=_st(path);
-  if(OM.isOnline&&window._fbAvailable){
-    return await _origDbPush(path,data);
-  }else{
-    const tempKey='off_'+uid();
-    await IDB.enqueue({type:'push',path,data});
-    // إضافة لـ S مباشرة بـ key مؤقت
-    if(S[store]!==undefined) S[store][tempKey]={...(data||{})};
-    // حفظ في IDB
-    await IDB.saveStore(store,S[store]||{}).catch(()=>{});
-    // تحديث العداد
-    IDB.getQueue().then(q=>updateQueueBadge(q.length));
-    // إعادة رسم القائمة
-    OM._rerender(store);
-    return{key:tempKey};
-  }
+  return await _origDbPush(path,data);
 };
 
 window.dbUpdate=async function(path,data){
-  const store=_st(path),key=_ky(path);
-  if(OM.isOnline&&window._fbAvailable){
-    await _origDbUpdate(path,data);
-  }else{
-    await IDB.enqueue({type:'update',path,data});
-    // تحديث S مباشرة
-    if(key&&S[store]!==undefined)
-      S[store][key]={...(S[store][key]||{}),...(data||{})};
-    // حفظ في IDB
-    if(key) await IDB.putRecord(store,key,S[store]?.[key]||data).catch(()=>{});
-    // تحديث العداد
-    IDB.getQueue().then(q=>updateQueueBadge(q.length));
-    // إعادة رسم القائمة
-    OM._rerender(store);
-  }
+  await _origDbUpdate(path,data);
 };
 
 window.dbRemove=async function(path){
-  const store=_st(path),key=_ky(path);
-  if(OM.isOnline&&window._fbAvailable){
-    await _origDbRemove(path);
-  }else{
-    await IDB.enqueue({type:'remove',path});
-    // حذف من S مباشرة
-    if(key&&S[store]!==undefined) delete S[store][key];
-    // حذف من IDB
-    if(key) await IDB.delRecord(store,key).catch(()=>{});
-    // تحديث العداد
-    IDB.getQueue().then(q=>updateQueueBadge(q.length));
-    // إعادة رسم القائمة
-    OM._rerender(store);
-  }
+  await _origDbRemove(path);
 };
 
 // ============================================================
 // OFFLINE MODE - لما Firebase ما يشتغلش
 // ============================================================
+// وضع الأوف لاين معطّل — النظام يعمل سحابياً فقط
 window.addEventListener('fbOffline',()=>{
-  window.$db=null;
-  window.$ref=()=>({});
-  window.$set=async()=>{};
-  window.$push=async()=>({key:'off_'+Math.random().toString(36).slice(2)});
-  window.$update=async()=>{};
-  window.$remove=async()=>{};
-  window.$onValue=()=>{};
-
-  setTimeout(async()=>{
-    document.getElementById('loading')?.classList.add('out');
-    await OM.loadFromIDB();
-    // تحقق من الجلسة
-    const session=sessionStorage.getItem('ctg_user');
-    if(!session){
-      // حاول تحميل المستخدمين من IDB للتحقق من تسجيل الدخول
-      document.getElementById('login-screen').style.display='flex';
-      document.querySelector('.layout').style.display='none';
-    }
-  },800);
+  console.warn('fbOffline event received but offline mode is disabled - cloud only');
 });
 
-// مزامنة IDB أول مرة بعد تحميل Firebase
+// مزامنة IDB أول مرة وبشكل دوري — يضمن أن الأوف لاين دائماً نسخة حديثة
 window.addEventListener('fbReady',()=>{
   setTimeout(()=>OM.syncToIDB(),5000);
+  setInterval(()=>{if(OM.isOnline&&window._fbAvailable)OM.syncToIDB();},120000);
 },{once:true});
 
 // ============================================================
