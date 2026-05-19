@@ -545,7 +545,7 @@ body.printing-report .print-report-header{
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;">
           <div style="background:var(--card2);border-radius:8px;padding:8px;text-align:center;">
-            <div style="font-size:9px;color:var(--text2);margin-bottom:3px;">إجمالي البيع</div>
+            <div style="font-size:9px;color:var(--text2);margin-bottom:3px;">إجمالي البيع (بعد الخصم)</div>
             <div style="font-size:12px;font-weight:900;color:var(--accent);" id="s-margin-sell">0</div>
           </div>
           <div style="background:var(--card2);border-radius:8px;padding:8px;text-align:center;">
@@ -553,7 +553,7 @@ body.printing-report .print-report-header{
             <div style="font-size:12px;font-weight:900;color:var(--red);" id="s-margin-cost">0</div>
           </div>
           <div style="background:var(--card2);border-radius:8px;padding:8px;text-align:center;">
-            <div style="font-size:9px;color:var(--text2);margin-bottom:3px;">الفرق (EGP)</div>
+            <div style="font-size:9px;color:var(--text2);margin-bottom:3px;">صافي الربح (EGP)</div>
             <div style="font-size:12px;font-weight:900;color:var(--green);" id="s-margin-diff">0</div>
           </div>
         </div>
@@ -2371,14 +2371,20 @@ function updateDashboard(){
   // Net profit
   const netProfit=totalRevenue-totalPurchases-totalExpenses;
 
-  // Gross margin: sum of (sell price - cost price) per item sold in period
+  // Gross margin: sum of (actual sell price after discount - cost price) per item sold in period
   let totalSellVal=0, totalCostVal=0;
   filteredSales.forEach(s=>{
-    (s.items||[]).forEach(i=>{
+    const items=s.items||[];
+    const subtotal=+s.subtotal||items.reduce((a,i)=>(a+(+i.qty||0)*(+i.price||0)),0);
+    const discountAmt=+s.discount||0;
+    items.forEach(i=>{
       const qty=+i.qty||0;
       const sellP=+i.price||0;
       const costP=+i.cost||0;
-      totalSellVal+=qty*sellP;
+      const itemSubtotal=qty*sellP;
+      // توزيع الخصم بنسبة قيمة كل منتج من إجمالي الفاتورة
+      const itemDiscount=subtotal>0?(itemSubtotal/subtotal)*discountAmt:0;
+      totalSellVal+=itemSubtotal-itemDiscount;
       totalCostVal+=qty*costP;
     });
   });
@@ -2428,7 +2434,7 @@ function updateDashboard(){
   const breakdownEl=document.getElementById('dash-profit-breakdown');
   if(breakdownEl){
     const items2=[
-      {label:'هامش المبيعات (البيع - التكلفة)',val:grossMargin,color:'var(--accent)'},
+      {label:'هامش المبيعات (البيع بعد الخصم - التكلفة)',val:grossMargin,color:'var(--accent)'},
       {label:'المصروفات',val:-totalExpenses,color:'var(--yellow)'},
       {label:'صافي الربح النهائي',val:netProfit,color:netProfit>=0?'var(--green)':'var(--red)'},
     ];
