@@ -5327,12 +5327,36 @@ async function importProductsFromExcel(event){
     if(rows.length<2){toast('الملف فارغ','error');return;}
     const dataRows=rows.slice(1).filter(r=>r[0]&&String(r[0]).trim());
     if(!dataRows.length){toast('لا توجد بيانات صالحة','error');return;}
-    // Build category & warehouse lookup maps (by name)
+
+    // Build category lookup maps (by name - normalized)
     const cats=getAllCats();
+    // خريطة الفئات: الاسم المنظّف → المعرّف
     const catMap={};
-    Object.entries(cats).forEach(([id,c])=>{catMap[c.name?.toLowerCase()]=id;});
+    Object.entries(cats).forEach(([id,c])=>{
+      if(c.name){
+        // مفتاح: اسم بدون مسافات زائدة وبحروف صغيرة
+        catMap[c.name.trim().toLowerCase()]=id;
+      }
+    });
+
+    // Build warehouse lookup map
     const whMap={};
-    Object.entries(S.warehouses).forEach(([id,w])=>{whMap[w.name?.toLowerCase()]=id;});
+    Object.entries(S.warehouses).forEach(([id,w])=>{
+      if(w.name) whMap[w.name.trim().toLowerCase()]=id;
+    });
+
+    // دالة مساعدة: ابحث عن الفئة بالاسم (مرنة)
+    function findCatId(catName){
+      if(!catName||!catName.trim()) return null;
+      const key=catName.trim().toLowerCase();
+      // 1) تطابق تام
+      if(catMap[key]) return catMap[key];
+      // 2) تطابق جزئي (الشيت يحتوي جزء من اسم الفئة)
+      const partialKey=Object.keys(catMap).find(k=>k.includes(key)||key.includes(k));
+      if(partialKey) return catMap[partialKey];
+      return null;
+    }
+
     let added=0,updated=0,errors=[];
     for(const row of dataRows){
       const name=String(row[0]||'').trim();
@@ -5344,17 +5368,31 @@ async function importProductsFromExcel(event){
       const cost=parseFloat(row[6])||0;
       const price=parseFloat(row[7])||0;
       const desc=String(row[8]||'').trim();
+      const serial=String(row[9]||'').trim();
       if(!name){continue;}
-      // Find category ID - use exact match only, no fallback to first category
-      const catId=catMap[catName?.toLowerCase()]||(catName?null:Object.keys(cats)[0]||'laptop');
-      // Find warehouse ID - use exact match only, no fallback
-      const whId=whMap[whName?.toLowerCase()]||(whName?'':Object.keys(S.warehouses)[0]||'');
-      // Warn if category/warehouse not found but name was provided
-      if(catName&&!catMap[catName?.toLowerCase()]){errors.push(`المنتج "${name}": الفئة "${catName}" غير موجودة - سيتم استخدام الفئة الافتراضية`);}
-      if(whName&&!whMap[whName?.toLowerCase()]){errors.push(`المنتج "${name}": المخزن "${whName}" غير موجود - سيتم تجاهل المخزن`);}
-      const prodData={name,code,cat:catId||'laptop',whId,qty,min,cost,price,desc,serial:String(row[9]||'').trim(),updatedAt:new Date().toISOString()};
+
+      // ← الإصلاح الأساسي: كل منتج يحصل على فئته الخاصة
+      const catId=findCatId(catName);
+
+      // تحذير إن الفئة غير موجودة
+      if(catName&&!catId){
+        errors.push(`المنتج "${name}": الفئة "${catName}" غير موجودة — سيُستخدم "أخرى"`);
+      }
+
+      // المخزن
+      const whId=whName?whMap[whName.trim().toLowerCase()]||'':Object.keys(S.warehouses)[0]||'';
+      if(whName&&!whMap[whName.trim().toLowerCase()]){
+        errors.push(`المنتج "${name}": المخزن "${whName}" غير موجود`);
+      }
+
+      const prodData={
+        name,code,
+        cat: catId || 'other',   // ← fallback على "أخرى" لا على أول فئة
+        whId,qty,min,cost,price,desc,serial,
+        updatedAt:new Date().toISOString()
+      };
+
       try{
-        // Check if product exists by code or name
         const existing=code
           ?Object.entries(S.products).find(([,p])=>p.code===code)
           :Object.entries(S.products).find(([,p])=>p.name?.toLowerCase()===name.toLowerCase());
@@ -5373,9 +5411,9 @@ async function importProductsFromExcel(event){
       }catch(e){errors.push(name+': '+e.message);}
     }
     let msg=`✅ تم استيراد المنتجات: ${added} جديد, ${updated} محدث`;
-    if(errors.length)msg+=` | ⚠️ ${errors.length} أخطاء`;
+    if(errors.length)msg+=` | ⚠️ ${errors.length} تنبيه`;
     toast(msg,errors.length?'info':'');
-    if(errors.length)console.warn('Errors:',errors);
+    if(errors.length)console.warn('Import warnings:',errors);
   }catch(e){toast('خطأ في قراءة الملف: '+e.message,'error');}
   finally{event.target.value='';}
 }
