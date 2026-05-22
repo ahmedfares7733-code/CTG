@@ -418,6 +418,7 @@ body.printing-report .print-report-header{
       <div class="sb-label">المبيعات</div>
       <div class="sb-item" data-page="pos"><i class="fas fa-cash-register"></i> نقطة البيع</div>
       <div class="sb-item" data-page="sales"><i class="fas fa-file-invoice"></i> الفواتير</div>
+      <div class="sb-item" data-page="returns"><i class="fas fa-undo-alt"></i> المرتجعات</div>
       <div class="sb-item" data-page="customers"><i class="fas fa-users"></i> العملاء</div>
     </div>
     <div class="sb-section">
@@ -679,6 +680,55 @@ body.printing-report .print-report-header{
           <div class="total-row" id="change-row" style="display:none;color:var(--green);font-weight:700;"><span>الباقي:</span><span id="change-val">0.00</span></div>
           <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px;" onclick="completeSale()"><i class="fas fa-check-circle"></i> إتمام البيع وطباعة الفاتورة</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RETURNS -->
+  <div class="page page-content" id="pg-returns">
+    <div class="flex justify-between items-center mb-4 gap-2" style="flex-wrap:wrap;gap:9px;">
+      <div class="flex gap-2" style="gap:9px;flex-wrap:wrap;">
+        <div class="search-wrap"><input class="fc" id="ret-search" placeholder="بحث في المرتجعات..." oninput="renderReturns()"><span class="si"><i class="fas fa-search"></i></span></div>
+        <input type="date" class="fc" id="ret-from" style="width:140px;" onchange="renderReturns()">
+        <input type="date" class="fc" id="ret-to" style="width:140px;" onchange="renderReturns()">
+        <select class="fc" id="ret-type-filter" style="width:140px;" onchange="renderReturns()">
+          <option value="">كل الأنواع</option>
+          <option value="sale">مرتجع مبيعات</option>
+          <option value="purchase">مرتجع مشتريات</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-success btn-sm" onclick="exportReturnsExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+        <button class="btn btn-primary" onclick="openAddReturn()"><i class="fas fa-plus"></i> مرتجع جديد</button>
+      </div>
+    </div>
+    <!-- Stats Row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;" id="ret-stats-row">
+      <div class="stat-card" style="background:var(--card);border:1px solid var(--red);"><div class="stat-icon" style="background:var(--red-bg);color:var(--red);"><i class="fas fa-undo-alt"></i></div><div class="stat-value" id="ret-total-count" style="color:var(--red);">0</div><div class="stat-label">إجمالي المرتجعات</div></div>
+      <div class="stat-card" style="background:var(--card);border:1px solid var(--yellow);"><div class="stat-icon" style="background:var(--yellow-bg);color:var(--yellow);"><i class="fas fa-shopping-cart"></i></div><div class="stat-value" id="ret-sale-count" style="color:var(--yellow);">0</div><div class="stat-label">مرتجعات مبيعات</div></div>
+      <div class="stat-card" style="background:var(--card);border:1px solid var(--purple);"><div class="stat-icon" style="background:var(--purple-bg);color:var(--purple);"><i class="fas fa-cart-plus"></i></div><div class="stat-value" id="ret-purchase-count" style="color:var(--purple);">0</div><div class="stat-label">مرتجعات مشتريات</div></div>
+      <div class="stat-card" style="background:var(--card);border:1px solid var(--accent);"><div class="stat-icon" style="background:var(--accent-bg);color:var(--accent);"><i class="fas fa-money-bill-wave"></i></div><div class="stat-value" id="ret-total-val" style="color:var(--accent);">0</div><div class="stat-label">إجمالي قيمة المرتجعات (EGP)</div></div>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>رقم المرتجع</th>
+              <th>التاريخ</th>
+              <th>النوع</th>
+              <th>العميل / المورد</th>
+              <th>الفاتورة الأصلية</th>
+              <th>المنتجات</th>
+              <th>قيمة المرتجع</th>
+              <th>طريقة الاسترداد</th>
+              <th>السبب</th>
+              <th>بواسطة</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="ret-tbl"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -1376,6 +1426,147 @@ body.printing-report .print-report-header{
 </div>
 </div>
 
+<!-- Return Modal -->
+<div class="overlay" id="modal-return">
+<div class="modal lg">
+  <div class="modal-head">
+    <h3><i class="fas fa-undo-alt" style="color:var(--red)"></i> إضافة مرتجع جديد</h3>
+    <button class="close-btn" onclick="closeModal('modal-return')"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="modal-body">
+    <!-- نوع المرتجع -->
+    <div class="form-row form-row-2 mb-3">
+      <div class="fg">
+        <label>نوع المرتجع *</label>
+        <select class="fc" id="retf-type" onchange="onReturnTypeChange()">
+          <option value="sale">مرتجع مبيعات (من عميل)</option>
+          <option value="purchase">مرتجع مشتريات (إلى مورد)</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>التاريخ *</label>
+        <input class="fc" id="retf-date" type="date">
+      </div>
+    </div>
+    <!-- اختيار الفاتورة الأصلية -->
+    <div class="form-row mb-3" id="retf-invoice-row">
+      <div class="fg">
+        <label id="retf-invoice-label">الفاتورة الأصلية (اختياري)</label>
+        <div style="display:flex;gap:7px;">
+          <select class="fc" id="retf-invoice-id" onchange="onReturnInvoiceSelect()" style="flex:1;">
+            <option value="">-- بدون فاتورة أصلية --</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="clearReturnInvoice()" title="مسح الاختيار"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+    </div>
+    <!-- العميل / المورد -->
+    <div class="form-row form-row-2 mb-3">
+      <div class="fg" id="retf-party-wrap">
+        <label id="retf-party-label">العميل</label>
+        <div class="smart-select-wrap" id="retf-cust-wrap">
+          <div class="smart-select-box fc" onclick="openSmartSelect('retf-cust-wrap','customers','عميل نقدي')" tabindex="0">
+            <span class="ss-icon">👤</span>
+            <span class="ss-label" id="retf-cust-label">-- اختر عميل --</span>
+            <i class="fas fa-chevron-down ss-arrow"></i>
+          </div>
+          <input type="hidden" id="retf-cust" value="">
+        </div>
+      </div>
+      <div class="fg" id="retf-sup-party-wrap" style="display:none;">
+        <label>المورد</label>
+        <div class="smart-select-wrap" id="retf-sup-wrap">
+          <div class="smart-select-box fc" onclick="openSmartSelect('retf-sup-wrap','suppliers','اختر مورداً')" tabindex="0">
+            <span class="ss-icon">🏭</span>
+            <span class="ss-label" id="retf-sup-label">-- اختر مورد --</span>
+            <i class="fas fa-chevron-down ss-arrow"></i>
+          </div>
+          <input type="hidden" id="retf-sup" value="">
+        </div>
+      </div>
+      <div class="fg">
+        <label>المخزن *</label>
+        <div class="smart-select-wrap" id="retf-wh-wrap">
+          <div class="smart-select-box fc" onclick="openSmartSelect('retf-wh-wrap','warehouses','اختر مخزناً')" tabindex="0">
+            <span class="ss-icon">🏪</span>
+            <span class="ss-label" id="retf-wh-label">-- اختر مخزن --</span>
+            <i class="fas fa-chevron-down ss-arrow"></i>
+          </div>
+          <input type="hidden" id="retf-wh" value="">
+        </div>
+      </div>
+    </div>
+    <!-- الأصناف المرتجعة -->
+    <div style="border:1px solid var(--border);border-radius:9px;padding:13px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;color:var(--red);"><i class="fas fa-undo-alt"></i> الأصناف المرتجعة</div>
+        <button class="btn btn-ghost btn-sm" onclick="addReturnItem()"><i class="fas fa-plus"></i> إضافة صنف</button>
+      </div>
+      <div id="retf-items-list"></div>
+    </div>
+    <!-- الإجمالي -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;background:var(--card2);border-radius:9px;padding:10px 14px;">
+      <span style="font-size:13px;font-weight:700;color:var(--text2);">إجمالي قيمة المرتجع:</span>
+      <span style="font-size:18px;font-weight:900;color:var(--red);" id="retf-total-val">0.00 EGP</span>
+    </div>
+    <!-- طريقة الاسترداد والسبب -->
+    <div class="form-row form-row-2 mb-3">
+      <div class="fg">
+        <label>طريقة الاسترداد *</label>
+        <select class="fc" id="retf-refund-method">
+          <option value="cash">استرداد نقدي</option>
+          <option value="credit">رصيد لدى المتجر</option>
+          <option value="exchange">استبدال بمنتج آخر</option>
+          <option value="none">بدون استرداد</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>الخزينة <span id="retf-cashbox-note" style="font-size:10px;color:var(--text3);">(للاسترداد النقدي)</span></label>
+        <select class="fc" id="retf-cashbox"></select>
+      </div>
+    </div>
+    <div class="form-row mb-3">
+      <div class="fg">
+        <label>سبب الإرجاع *</label>
+        <select class="fc" id="retf-reason">
+          <option value="defective">منتج معيب / تالف</option>
+          <option value="wrong_item">منتج خاطئ</option>
+          <option value="customer_change">تغيير رأي العميل</option>
+          <option value="expired">منتهي الصلاحية</option>
+          <option value="quality">مشكلة في الجودة</option>
+          <option value="other">أخرى</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="fg">
+        <label>ملاحظات</label>
+        <textarea class="fc" id="retf-notes" rows="2" placeholder="أي ملاحظات إضافية..."></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-return')">إلغاء</button>
+    <button class="btn btn-danger" onclick="saveReturn()"><i class="fas fa-undo-alt"></i> حفظ المرتجع</button>
+  </div>
+</div>
+</div>
+
+<!-- Return View Modal -->
+<div class="overlay" id="modal-ret-view">
+<div class="modal xl">
+  <div class="modal-head">
+    <h3><i class="fas fa-undo-alt" style="color:var(--red)"></i> تفاصيل المرتجع</h3>
+    <button class="close-btn" onclick="closeModal('modal-ret-view')"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="modal-body" id="ret-view-body"></div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-ret-view')">إغلاق</button>
+    <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
+  </div>
+</div>
+</div>
+
 <!-- Expense Modal -->
 <div class="overlay" id="modal-exp">
 <div class="modal">
@@ -1770,7 +1961,7 @@ body.printing-report .print-report-header{
 const S = {
   products:{}, customers:{}, warehouses:{}, sales:{},
   purchases:{}, expenses:{}, suppliers:{}, movements:{},
-  categories:{}, cashboxes:{}, cashboxLog:{}, users:{},
+  categories:{}, cashboxes:{}, cashboxLog:{}, users:{}, returns:{},
   settings:{
     company:'Computer Technology Group', phone:'01028631512',
     web:'https://computer.ordersapps.com/ar', addr:'', curr:'EGP',
@@ -1799,6 +1990,7 @@ window.addEventListener('fbReady',()=>{
   listenAndSave('categories',v=>{S.categories=v;renderCategories();fillCatSelects();renderProducts();});
   listenAndSave('cashboxes',v=>{S.cashboxes=v;renderCashboxes();fillCashboxSelects();});
   listenAndSave('cashboxLog',v=>{S.cashboxLog=v;renderCashboxLog();});
+  listenAndSave('returns',v=>{S.returns=v;if(document.getElementById('pg-returns')?.classList.contains('active'))renderReturns();});
   listen('settings',v=>{if(v&&v.company){S.settings={...S.settings,...v};IDB.saveStore('settings',S.settings).catch(()=>{});loadSettingsUI();if(document.getElementById('pg-inv-settings')?.classList.contains('active'))loadInvSettingsUI();}});
   listen('users',v=>{S.users=v||{};IDB.saveStore('users',S.users).catch(()=>{});renderUsers();});
 
@@ -1836,6 +2028,7 @@ const PAGE_CFG={
   sales:{title:'الفواتير والمبيعات',icon:'fa-file-invoice'},
   customers:{title:'العملاء',icon:'fa-users'},
   products:{title:'المنتجات',icon:'fa-laptop'},
+  returns:{title:'المرتجعات',icon:'fa-undo-alt'},
   categories:{title:'إدارة الفئات',icon:'fa-tags'},
   warehouses:{title:'المخازن',icon:'fa-warehouse'},
   purchases:{title:'المشتريات',icon:'fa-cart-plus'},
@@ -1864,6 +2057,7 @@ function nav(name){
   if(name==='barcode') setTimeout(initBC,120);
   if(name==='reports') setPeriod('month');
   if(name==='debts') renderDebtsPage();
+  if(name==='returns') renderReturns();
   if(name==='users') renderUsers();
   if(name==='pos'){
     setTimeout(()=>document.getElementById('pos-scan-input')?.focus(),100);
@@ -5839,13 +6033,450 @@ window.nav=function(name){
 };
 
 // ============================================================
+// RETURNS - قسم المرتجعات
+// ============================================================
+
+const RETURN_REASONS={
+  defective:'منتج معيب / تالف',
+  wrong_item:'منتج خاطئ',
+  customer_change:'تغيير رأي العميل',
+  expired:'منتهي الصلاحية',
+  quality:'مشكلة في الجودة',
+  other:'أخرى'
+};
+const REFUND_METHODS={
+  cash:'استرداد نقدي',
+  credit:'رصيد لدى المتجر',
+  exchange:'استبدال بمنتج آخر',
+  none:'بدون استرداد'
+};
+
+let retItems=[{prodId:'',name:'',qty:1,price:0}];
+
+function openAddReturn(){
+  retItems=[{prodId:'',name:'',qty:1,price:0}];
+  document.getElementById('retf-date').value=today();
+  document.getElementById('retf-notes').value='';
+  document.getElementById('retf-reason').value='defective';
+  document.getElementById('retf-refund-method').value='cash';
+  // reset smart selects
+  ['retf-cust-wrap','retf-sup-wrap','retf-wh-wrap'].forEach(wid=>{
+    const wrap=document.getElementById(wid);if(!wrap)return;
+    const h=wrap.querySelector('input[type=hidden]');
+    const l=wrap.querySelector('.ss-label');
+    if(h)h.value='';
+    if(l){
+      if(wid==='retf-cust-wrap')l.textContent='-- اختر عميل --';
+      else if(wid==='retf-sup-wrap')l.textContent='-- اختر مورد --';
+      else l.textContent='-- اختر مخزن --';
+      l.style.color='var(--text3)';
+    }
+  });
+  // reset invoice dropdown
+  const invSel=document.getElementById('retf-invoice-id');
+  if(invSel){invSel.innerHTML='<option value="">-- بدون فاتورة أصلية --</option>';}
+  fillCashboxSelects();
+  onReturnTypeChange();
+  renderReturnItems();
+  openModal('modal-return');
+}
+
+function onReturnTypeChange(){
+  const type=document.getElementById('retf-type')?.value||'sale';
+  const custWrap=document.getElementById('retf-party-wrap');
+  const supWrap=document.getElementById('retf-sup-party-wrap');
+  const invLbl=document.getElementById('retf-invoice-label');
+  const invSel=document.getElementById('retf-invoice-id');
+  if(type==='sale'){
+    if(custWrap)custWrap.style.display='';
+    if(supWrap)supWrap.style.display='none';
+    if(invLbl)invLbl.textContent='فاتورة البيع الأصلية (اختياري)';
+    // populate with sales invoices
+    if(invSel){
+      const opts='<option value="">-- بدون فاتورة أصلية --</option>'+
+        Object.entries(S.sales).sort(([,a],[,b])=>new Date(b.date)-new Date(a.date))
+        .map(([id,s])=>`<option value="${id}">#${id.slice(-5).toUpperCase()} — ${s.custName||s.customerName||'نقدي'} — ${N(s.total)} EGP — ${fDate(s.date)}</option>`).join('');
+      invSel.innerHTML=opts;
+    }
+  } else {
+    if(custWrap)custWrap.style.display='none';
+    if(supWrap)supWrap.style.display='';
+    if(invLbl)invLbl.textContent='فاتورة الشراء الأصلية (اختياري)';
+    if(invSel){
+      const opts='<option value="">-- بدون فاتورة أصلية --</option>'+
+        Object.entries(S.purchases).sort(([,a],[,b])=>new Date(b.date)-new Date(a.date))
+        .map(([id,p])=>`<option value="${id}">#${id.slice(-5).toUpperCase()} — ${p.supplier||'-'} — ${N(p.total)} EGP — ${fDate(p.date)}</option>`).join('');
+      invSel.innerHTML=opts;
+    }
+  }
+}
+
+function onReturnInvoiceSelect(){
+  const type=document.getElementById('retf-type')?.value||'sale';
+  const invId=document.getElementById('retf-invoice-id')?.value||'';
+  if(!invId){retItems=[{prodId:'',name:'',qty:1,price:0}];renderReturnItems();return;}
+  if(type==='sale'){
+    const sale=S.sales[invId];if(!sale)return;
+    // pre-fill customer
+    const custWrap=document.getElementById('retf-cust-wrap');
+    if(custWrap&&(sale.custId||sale.customerId)){
+      const cid=sale.custId||sale.customerId;
+      const h=custWrap.querySelector('input[type=hidden]');
+      const l=custWrap.querySelector('.ss-label');
+      if(h)h.value=cid;
+      if(l){l.textContent=S.customers[cid]?.name||sale.custName||sale.customerName||'عميل';l.style.color='var(--text)';}
+    }
+    // pre-fill warehouse
+    const whId=sale.warehouseId||sale.whId||'';
+    if(whId){
+      const whWrap=document.getElementById('retf-wh-wrap');
+      if(whWrap){
+        const h=whWrap.querySelector('input[type=hidden]');
+        const l=whWrap.querySelector('.ss-label');
+        if(h)h.value=whId;
+        if(l){l.textContent=S.warehouses[whId]?.name||'-';l.style.color='var(--text)';}
+      }
+    }
+    // pre-fill items
+    retItems=(sale.items||[]).map(it=>({prodId:it.prodId||'',name:it.name||'',qty:it.qty||1,price:it.price||0}));
+    if(!retItems.length)retItems=[{prodId:'',name:'',qty:1,price:0}];
+    renderReturnItems();
+  } else {
+    const pur=S.purchases[invId];if(!pur)return;
+    // pre-fill supplier
+    const supWrap=document.getElementById('retf-sup-wrap');
+    if(supWrap&&pur.supplierId){
+      const h=supWrap.querySelector('input[type=hidden]');
+      const l=supWrap.querySelector('.ss-label');
+      if(h)h.value=pur.supplierId;
+      if(l){l.textContent=S.suppliers[pur.supplierId]?.name||pur.supplier||'-';l.style.color='var(--text)';}
+    }
+    // pre-fill warehouse
+    const whId=pur.warehouseId||'';
+    if(whId){
+      const whWrap=document.getElementById('retf-wh-wrap');
+      if(whWrap){
+        const h=whWrap.querySelector('input[type=hidden]');
+        const l=whWrap.querySelector('.ss-label');
+        if(h)h.value=whId;
+        if(l){l.textContent=S.warehouses[whId]?.name||'-';l.style.color='var(--text)';}
+      }
+    }
+    retItems=(pur.items||[]).map(it=>({prodId:it.prodId||'',name:S.products[it.prodId]?.name||'',qty:it.qty||1,price:it.price||0}));
+    if(!retItems.length)retItems=[{prodId:'',name:'',qty:1,price:0}];
+    renderReturnItems();
+  }
+}
+
+function clearReturnInvoice(){
+  const invSel=document.getElementById('retf-invoice-id');
+  if(invSel)invSel.value='';
+  retItems=[{prodId:'',name:'',qty:1,price:0}];
+  renderReturnItems();
+}
+
+function addReturnItem(){
+  retItems.push({prodId:'',name:'',qty:1,price:0});
+  renderReturnItems();
+}
+
+function removeReturnItem(i){
+  retItems.splice(i,1);
+  if(!retItems.length)retItems=[{prodId:'',name:'',qty:1,price:0}];
+  renderReturnItems();
+}
+
+function renderReturnItems(){
+  const el=document.getElementById('retf-items-list');
+  if(!el)return;
+  el.innerHTML=retItems.map((item,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 80px 120px 32px;gap:7px;margin-bottom:8px;align-items:center;">
+      <input class="fc" placeholder="اسم المنتج / الصنف *" value="${escHtml(item.name)}"
+        oninput="retItems[${i}].name=this.value" style="font-size:12px;font-weight:600;">
+      <input class="fc" type="number" placeholder="الكمية" value="${item.qty}" min="1"
+        oninput="retItems[${i}].qty=Math.max(1,+this.value);calcReturnTotal()" style="font-size:12px;">
+      <input class="fc" type="number" placeholder="سعر الوحدة" value="${item.price}" min="0" step="0.01"
+        oninput="retItems[${i}].price=+this.value;calcReturnTotal()" style="font-size:12px;">
+      <button class="btn btn-danger btn-xs" onclick="removeReturnItem(${i})" title="حذف الصنف"><i class="fas fa-times"></i></button>
+    </div>`).join('');
+  calcReturnTotal();
+}
+
+function calcReturnTotal(){
+  const total=retItems.reduce((s,i)=>s+(+i.qty||0)*(+i.price||0),0);
+  const el=document.getElementById('retf-total-val');
+  if(el)el.textContent=N(total)+' EGP';
+  return total;
+}
+
+async function saveReturn(){
+  const type=document.getElementById('retf-type')?.value||'sale';
+  const date=document.getElementById('retf-date')?.value||today();
+  const reason=document.getElementById('retf-reason')?.value||'other';
+  const refundMethod=document.getElementById('retf-refund-method')?.value||'cash';
+  const notes=(document.getElementById('retf-notes')?.value||'').trim();
+  const cbId=document.getElementById('retf-cashbox')?.value||'';
+  const whId=document.getElementById('retf-wh')?.value||'';
+  const invId=document.getElementById('retf-invoice-id')?.value||'';
+
+  // Validate items
+  const validItems=retItems.filter(i=>(i.name||'').trim()&&(+i.qty||0)>0);
+  if(!validItems.length){toast('يرجى إضافة صنف واحد على الأقل','error');return;}
+  if(!whId){toast('يرجى اختيار المخزن','error');return;}
+
+  const total=validItems.reduce((s,i)=>s+(+i.qty||0)*(+i.price||0),0);
+
+  // Build return record
+  const retData={
+    type,date,reason,refundMethod,notes,
+    warehouseId:whId,
+    items:validItems,
+    total,
+    invoiceId:invId||'',
+    status:'done',
+    createdBy:getCU(),
+    createdAt:new Date().toISOString()
+  };
+
+  if(type==='sale'){
+    const custId=document.getElementById('retf-cust')?.value||'';
+    retData.customerId=custId;
+    retData.customerName=custId?(S.customers[custId]?.name||'عميل نقدي'):'عميل نقدي';
+    retData.partyName=retData.customerName;
+  } else {
+    const supId=document.getElementById('retf-sup')?.value||'';
+    retData.supplierId=supId;
+    retData.supplierName=supId?(S.suppliers[supId]?.name||'-'):'-';
+    retData.partyName=retData.supplierName;
+  }
+
+  try{
+    // 1. Save return record
+    const retId=uid();
+    await dbUpdate('returns/'+retId,retData);
+
+    // 2. Adjust inventory
+    for(const item of validItems){
+      if(!item.prodId)continue;
+      const p=S.products[item.prodId];if(!p)continue;
+      if(type==='sale'){
+        // مرتجع من عميل → يرجع للمخزن (زيادة)
+        await dbUpdate('products/'+item.prodId,{qty:Math.max(0,(+p.qty||0)+item.qty)});
+        await dbPush('movements',{date:new Date().toISOString(),product:item.name,type:'in',qty:item.qty,whId,note:'مرتجع مبيعات #'+retId.slice(-6)});
+      } else {
+        // مرتجع للمورد → يخرج من المخزن (نقصان)
+        await dbUpdate('products/'+item.prodId,{qty:Math.max(0,(+p.qty||0)-item.qty)});
+        await dbPush('movements',{date:new Date().toISOString(),product:item.name,type:'out',qty:item.qty,whId,note:'مرتجع مشتريات #'+retId.slice(-6)});
+      }
+    }
+
+    // 3. Cash refund: deduct from cashbox
+    if(refundMethod==='cash'&&cbId&&total>0&&type==='sale'){
+      await addCashboxEntry(cbId,total,'withdraw',`مرتجع مبيعات - ${retData.customerName}`,'#'+retId.slice(-6).toUpperCase());
+    }
+    // Cash return from supplier: add to cashbox
+    if(refundMethod==='cash'&&cbId&&total>0&&type==='purchase'){
+      await addCashboxEntry(cbId,total,'deposit',`مرتجع مشتريات - ${retData.supplierName}`,'#'+retId.slice(-6).toUpperCase());
+    }
+
+    // 4. Customer balance adjustment (sales return)
+    if(type==='sale'&&retData.customerId&&refundMethod==='credit'){
+      const c=S.customers[retData.customerId];
+      if(c) await dbUpdate('customers/'+retData.customerId,{balance:Math.max(0,(+c.balance||0)-total)});
+    }
+
+    closeModal('modal-return');
+    toast('✅ تم حفظ المرتجع بنجاح');
+    viewReturn({...retData,id:retId});
+  }catch(e){toast('خطأ: '+e.message,'error');}
+}
+
+function renderReturns(){
+  const tbody=document.getElementById('ret-tbl');if(!tbody)return;
+  const search=(document.getElementById('ret-search')?.value||'').toLowerCase();
+  const from=document.getElementById('ret-from')?.value||'';
+  const to=document.getElementById('ret-to')?.value||'';
+  const typeFilter=document.getElementById('ret-type-filter')?.value||'';
+
+  const rows=Object.entries(S.returns||{}).filter(([,r])=>{
+    const d=(r.date||'').slice(0,10);
+    const party=(r.partyName||r.customerName||r.supplierName||'').toLowerCase();
+    return(!search||party.includes(search)||r.reason?.toLowerCase().includes(search))
+      &&(!from||d>=from)&&(!to||d<=to)
+      &&(!typeFilter||r.type===typeFilter);
+  }).sort(([,a],[,b])=>new Date(b.createdAt||b.date)-new Date(a.createdAt||a.date));
+
+  // Update stat cards
+  const allReturns=Object.values(S.returns||{});
+  const totalVal=allReturns.reduce((s,r)=>s+(+r.total||0),0);
+  const saleCount=allReturns.filter(r=>r.type==='sale').length;
+  const purCount=allReturns.filter(r=>r.type==='purchase').length;
+  const retTotalCount=document.getElementById('ret-total-count');
+  const retSaleCount=document.getElementById('ret-sale-count');
+  const retPurchaseCount=document.getElementById('ret-purchase-count');
+  const retTotalVal=document.getElementById('ret-total-val');
+  if(retTotalCount)retTotalCount.textContent=allReturns.length;
+  if(retSaleCount)retSaleCount.textContent=saleCount;
+  if(retPurchaseCount)retPurchaseCount.textContent=purCount;
+  if(retTotalVal)retTotalVal.textContent=N(totalVal,0);
+
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text2);padding:24px;"><i class="fas fa-undo-alt" style="font-size:24px;opacity:.3;display:block;margin-bottom:8px;"></i>لا توجد مرتجعات</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=rows.map(([id,r])=>{
+    const typeBadge=r.type==='sale'
+      ?'<span class="badge badge-warning"><i class="fas fa-shopping-cart"></i> مبيعات</span>'
+      :'<span class="badge badge-purple"><i class="fas fa-cart-plus"></i> مشتريات</span>';
+    const refundBadge={
+      cash:'<span class="badge badge-success">نقدي</span>',
+      credit:'<span class="badge badge-info">رصيد</span>',
+      exchange:'<span class="badge badge-purple">استبدال</span>',
+      none:'<span class="badge" style="background:var(--border);color:var(--text2);">بدون</span>'
+    }[r.refundMethod]||'';
+    const itemsSummary=(r.items||[]).map(i=>`${i.name} (${i.qty})`).join(' ، ');
+    const origInvLink=r.invoiceId
+      ?`<button class="btn btn-ghost btn-xs" onclick="${r.type==='sale'?`viewSale('${r.invoiceId}')`:`viewPurchase('${r.invoiceId}')`}" title="عرض الفاتورة الأصلية"><i class="fas fa-external-link-alt"></i> #${r.invoiceId.slice(-5).toUpperCase()}</button>`
+      :'<span style="color:var(--text3);font-size:11px;">—</span>';
+    return`<tr>
+      <td style="color:var(--red);font-weight:700;">#${id.slice(-5).toUpperCase()}</td>
+      <td style="font-size:11px;">${fDate(r.date)}</td>
+      <td>${typeBadge}</td>
+      <td><strong>${r.partyName||r.customerName||r.supplierName||'—'}</strong></td>
+      <td>${origInvLink}</td>
+      <td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(itemsSummary)}">${itemsSummary||'—'}</td>
+      <td style="color:var(--red);font-weight:700;">${N(r.total)} EGP</td>
+      <td>${refundBadge}</td>
+      <td><span class="badge badge-info" style="font-size:10px;">${RETURN_REASONS[r.reason]||r.reason||'—'}</span></td>
+      <td style="font-size:11px;color:var(--text2);">${r.createdBy||'—'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-xs" onclick="viewReturn(Object.assign({id:'${id}'},S.returns['${id}']))" title="عرض التفاصيل"><i class="fas fa-eye"></i></button>
+        <button class="btn btn-danger btn-xs" onclick="delReturn('${id}')" title="حذف"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function delReturn(id){
+  if(!confirm('هل تريد حذف هذا المرتجع؟ لن يتم التراجع عن تعديلات المخزون.'))return;
+  await dbRemove('returns/'+id);
+  toast('تم حذف المرتجع');
+}
+
+function viewReturn(r){
+  const st=S.settings||{};
+  const typeLabel=r.type==='sale'?'مرتجع مبيعات':'مرتجع مشتريات';
+  const partyLabel=r.type==='sale'?'العميل:':'المورد:';
+  const partyName=r.partyName||r.customerName||r.supplierName||'—';
+  const whName=S.warehouses[r.warehouseId]?.name||r.warehouseId||'—';
+  const origInvStr=r.invoiceId?`#${r.invoiceId.slice(-5).toUpperCase()}`:'—';
+  const itemsHtml=(r.items||[]).map((it,i)=>`
+    <tr style="background:${i%2===0?'#fff':'#faf6f1'};border-bottom:1px solid #e0d5c8;">
+      <td style="padding:8px 12px;">${i+1}</td>
+      <td style="padding:8px 12px;font-weight:600;">${escHtml(it.name||'—')}</td>
+      <td style="padding:8px 12px;">${it.qty||0}</td>
+      <td style="padding:8px 12px;">${N(it.price||0)} ${st.curr||'EGP'}</td>
+      <td style="padding:8px 12px;font-weight:700;color:#c00;">${N((it.qty||0)*(it.price||0))} ${st.curr||'EGP'}</td>
+    </tr>`).join('');
+
+  const html=`
+  <div style="direction:rtl;font-family:'Cairo',Arial,sans-serif;background:#fff;color:#000;padding:0;font-size:13px;max-width:800px;margin:0 auto;border:1px solid #ddd;">
+    <!-- Header -->
+    <div style="background:#fff;border-bottom:3px solid #c00;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:16px;font-weight:900;color:#000;">${st.company||'Computer Technology Group'}</div>
+        <div style="font-size:10px;color:#555;">${st.web||''} | 📞 ${st.phone||''}</div>
+      </div>
+      <div style="text-align:left;">
+        <div style="font-size:22px;font-weight:900;color:#c00;letter-spacing:1px;">${typeLabel}</div>
+        <div style="font-size:10px;color:#555;">#${(r.id||'').slice(-6).toUpperCase()}</div>
+      </div>
+    </div>
+    <!-- Info Grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:2px solid #000;background:#fff;">
+      <div style="padding:12px 20px;border-left:1px solid #ddd;">
+        <table style="width:100%;font-size:11px;border-collapse:collapse;">
+          <tr><td style="color:#555;padding:3px 0;width:130px;">اسم الشركة:</td><td style="font-weight:700;">${st.company||'Computer Technology Group'}</td></tr>
+          <tr><td style="color:#555;padding:3px 0;">المخزن:</td><td>${whName}</td></tr>
+          <tr><td style="color:#555;padding:3px 0;">طريقة الاسترداد:</td><td style="font-weight:700;">${REFUND_METHODS[r.refundMethod]||r.refundMethod||'—'}</td></tr>
+          <tr><td style="color:#555;padding:3px 0;">بواسطة:</td><td>${r.createdBy||'—'}</td></tr>
+        </table>
+      </div>
+      <div style="padding:12px 20px;">
+        <table style="width:100%;font-size:11px;border-collapse:collapse;">
+          <tr><td style="color:#555;padding:3px 0;width:130px;">${partyLabel}</td><td style="font-weight:700;">${partyName}</td></tr>
+          <tr><td style="color:#555;padding:3px 0;">التاريخ:</td><td>${fDate(r.date)}</td></tr>
+          <tr><td style="color:#555;padding:3px 0;">سبب الإرجاع:</td><td style="font-weight:700;">${RETURN_REASONS[r.reason]||r.reason||'—'}</td></tr>
+          <tr><td style="color:#555;padding:3px 0;">الفاتورة الأصلية:</td><td>${origInvStr}</td></tr>
+        </table>
+      </div>
+    </div>
+    <!-- Items Table -->
+    <table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <thead>
+        <tr style="background:#fff;border-bottom:2px solid #000;border-top:1px solid #000;">
+          <th style="padding:9px 12px;text-align:right;font-weight:700;">#</th>
+          <th style="padding:9px 12px;text-align:right;font-weight:700;">الصنف</th>
+          <th style="padding:9px 12px;text-align:right;font-weight:700;">الكمية</th>
+          <th style="padding:9px 12px;text-align:right;font-weight:700;">سعر الوحدة</th>
+          <th style="padding:9px 12px;text-align:right;font-weight:700;">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+    <!-- Total -->
+    <div style="border-top:2px solid #000;padding:14px 20px;display:flex;justify-content:flex-end;background:#fff;">
+      <div style="background:#fff0f0;border:2px solid #c00;border-radius:8px;padding:12px 24px;text-align:center;min-width:220px;">
+        <div style="font-size:11px;color:#555;">إجمالي قيمة المرتجع</div>
+        <div style="font-size:22px;font-weight:900;color:#c00;">${N(r.total)} ${st.curr||'EGP'}</div>
+      </div>
+    </div>
+    <!-- Notes -->
+    ${r.notes?`<div style="border-top:1px solid #ddd;padding:10px 20px;font-size:11px;color:#333;background:#fafafa;">ملاحظات: ${escHtml(r.notes)}</div>`:''}
+    <!-- Footer -->
+    <div style="border-top:2px solid #000;padding:10px 20px;text-align:center;font-size:10px;color:#555;">
+      ${st.company||'Computer Technology Group'} | ${st.web||''} | 📞 ${st.phone||''}
+    </div>
+  </div>`;
+
+  const body=document.getElementById('ret-view-body');
+  if(body)body.innerHTML=html;
+  const printArea=document.getElementById('inv-print-area');
+  if(printArea)printArea.innerHTML=html;
+  openModal('modal-ret-view');
+}
+
+function exportReturnsExcel(){
+  if(!window.XLSX){toast('مكتبة Excel غير متاحة','error');return;}
+  const rows=Object.entries(S.returns||{}).map(([id,r])=>({
+    'رقم المرتجع':'#'+id.slice(-5).toUpperCase(),
+    'التاريخ':r.date||'',
+    'النوع':r.type==='sale'?'مرتجع مبيعات':'مرتجع مشتريات',
+    'العميل / المورد':r.partyName||r.customerName||r.supplierName||'',
+    'الفاتورة الأصلية':r.invoiceId?('#'+r.invoiceId.slice(-5).toUpperCase()):'',
+    'المنتجات':(r.items||[]).map(i=>`${i.name}(${i.qty})`).join(', '),
+    'قيمة المرتجع':r.total||0,
+    'طريقة الاسترداد':REFUND_METHODS[r.refundMethod]||r.refundMethod||'',
+    'سبب الإرجاع':RETURN_REASONS[r.reason]||r.reason||'',
+    'بواسطة':r.createdBy||''
+  }));
+  if(!rows.length){toast('لا توجد مرتجعات للتصدير','info');return;}
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'المرتجعات');
+  XLSX.writeFile(wb,'returns_'+today()+'.xlsx');
+  toast('تم تصدير المرتجعات');
+}
+
+// ============================================================
 // INDEXEDDB ENGINE
 // ============================================================
 const IDB={
   db:null,DB_NAME:'ctg_offline',DB_VERSION:1,
   STORES:['products','customers','warehouses','sales','purchases',
           'expenses','suppliers','movements','categories',
-          'cashboxes','cashboxLog','users','settings','pending_queue'],
+          'cashboxes','cashboxLog','users','settings','pending_queue','returns'],
   open(){
     return new Promise((resolve,reject)=>{
       if(this.db){resolve(this.db);return;}
