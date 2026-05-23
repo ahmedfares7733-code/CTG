@@ -385,6 +385,12 @@ body.printing-report .print-report-header{
     <div class="login-title">Computer Technology Group</div>
     <div class="login-sub">نظام الإدارة المتكامل - تسجيل الدخول</div>
     <div class="login-err" id="login-err"></div>
+    <div class="fg mb-3" id="login-branch-row">
+      <label>الفرع</label>
+      <select class="fc" id="login-branch">
+        <option value="">-- اختر الفرع --</option>
+      </select>
+    </div>
     <div class="fg mb-3"><label>اسم المستخدم</label><input class="fc" id="login-user" placeholder="username" autocomplete="username"></div>
     <div class="fg mb-3"><label>كلمة المرور</label><input class="fc" type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px;margin-top:6px;" onclick="doLogin()"><i class="fas fa-sign-in-alt"></i> دخول</button>
@@ -407,6 +413,13 @@ body.printing-report .print-report-header{
     <div class="sb-brand">
       <div class="sb-brand-icon">💻</div>
       <div class="sb-brand-text"><h2>Computer Technology</h2><p>نظام الإدارة المتكامل</p></div>
+    </div>
+    <!-- Branch context switcher for super admin -->
+    <div id="sb-branch-switcher" style="display:none;margin:0 10px 8px;border-radius:9px;background:var(--card2);border:1px solid var(--purple);padding:8px 10px;">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px;"><i class="fas fa-code-branch" style="color:var(--purple);"></i> عرض بيانات فرع:</div>
+      <select class="fc" id="sb-branch-ctx" style="font-size:11px;padding:5px 8px;" onchange="switchBranchContext(this.value)">
+        <option value="">الفرع الرئيسي (الكل)</option>
+      </select>
     </div>
   </div>
   <div class="sb-nav">
@@ -440,6 +453,8 @@ body.printing-report .print-report-header{
       <div class="sb-label">أخرى</div>
       <div class="sb-item" data-page="suppliers"><i class="fas fa-truck"></i> الموردون</div>
       <div class="sb-item" data-page="reports"><i class="fas fa-chart-bar"></i> التقارير</div>
+      <div class="sb-item" data-page="branches"><i class="fas fa-code-branch"></i> إدارة الفروع</div>
+      <div class="sb-item" data-page="shifts"><i class="fas fa-business-time"></i> الوردية</div>
       <div class="sb-item" data-page="users"><i class="fas fa-users-cog"></i> المستخدمون</div>
       <div class="sb-item" data-page="settings"><i class="fas fa-cog"></i> الإعدادات</div>
       <div class="sb-item" data-page="inv-settings"><i class="fas fa-file-invoice-dollar"></i> إعدادات الفاتورة</div>
@@ -460,6 +475,17 @@ body.printing-report .print-report-header{
       <div id="conn-indicator" style="display:flex!important;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;background:var(--green-bg);border:1px solid var(--green);font-size:11px;font-weight:700;color:var(--green);transition:all .3s;cursor:default;visibility:visible!important;opacity:1!important;" title="حالة الاتصال">
         <span id="conn-dot" style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;flex-shrink:0;"></span>
         <span id="conn-text">متصل</span>
+      </div>
+      <!-- Branch badge -->
+      <div id="branch-indicator" style="display:none;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--purple-bg);border:1px solid var(--purple);font-size:11px;font-weight:700;color:var(--purple);">
+        <i class="fas fa-code-branch"></i>
+        <span id="branch-indicator-name">—</span>
+      </div>
+      <!-- Shift indicator -->
+      <div id="shift-indicator" style="display:none;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--accent-bg);border:1px solid var(--accent);font-size:11px;font-weight:700;color:var(--accent);cursor:pointer;" onclick="nav('shifts')" title="الوردية الحالية">
+        <i class="fas fa-business-time"></i>
+        <span id="shift-indicator-text">وردية نشطة</span>
+        <span id="shift-indicator-time" style="font-size:10px;opacity:.7;"></span>
       </div>
       <button class="btn btn-warning" id="queue-btn" onclick="openQueuePanel()" style="display:none;position:relative;">
         <i class="fas fa-clock"></i> <span id="queue-btn-text">عمليات معلقة</span>
@@ -680,6 +706,62 @@ body.printing-report .print-report-header{
           <div class="total-row" id="change-row" style="display:none;color:var(--green);font-weight:700;"><span>الباقي:</span><span id="change-val">0.00</span></div>
           <button class="btn btn-success" style="width:100%;justify-content:center;padding:11px;" onclick="completeSale()"><i class="fas fa-check-circle"></i> إتمام البيع وطباعة الفاتورة</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BRANCHES -->
+  <div class="page page-content" id="pg-branches">
+    <div class="flex justify-between items-center mb-4" style="flex-wrap:wrap;gap:9px;">
+      <div style="font-size:13px;color:var(--text2);">إدارة الفروع المختلفة وتعيين المستخدمين لكل فرع</div>
+      <button class="btn btn-primary" onclick="openAddBranch()"><i class="fas fa-plus"></i> فرع جديد</button>
+    </div>
+    <div id="branches-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;"></div>
+  </div>
+
+  <!-- SHIFTS -->
+  <div class="page page-content" id="pg-shifts">
+    <div class="flex justify-between items-center mb-4" style="flex-wrap:wrap;gap:9px;">
+      <div>
+        <div style="font-size:13px;color:var(--text2);">سجل الورديات — تتبع المبيعات والعمليات لكل وردية</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <input type="date" class="fc" id="sh-from" style="width:140px;" onchange="renderShifts()">
+        <input type="date" class="fc" id="sh-to" style="width:140px;" onchange="renderShifts()">
+        <select class="fc" id="sh-branch-filter" style="width:160px;" onchange="renderShifts()">
+          <option value="">كل الفروع</option>
+        </select>
+        <button class="btn btn-success btn-sm" onclick="exportShiftsExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+      </div>
+    </div>
+    <!-- Active shift card -->
+    <div id="active-shift-card" style="display:none;margin-bottom:16px;"></div>
+    <!-- Stats -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+      <div class="stat-card" style="background:var(--card);border:1px solid var(--accent);"><div class="stat-icon" style="background:var(--accent-bg);color:var(--accent);"><i class="fas fa-business-time"></i></div><div class="stat-value" id="sh-total-count" style="color:var(--accent);">0</div><div class="stat-label">إجمالي الورديات</div></div>
+      <div class="stat-card" style="background:var(--card);border:1px solid var(--green);"><div class="stat-icon" style="background:var(--green-bg);color:var(--green);"><i class="fas fa-chart-line"></i></div><div class="stat-value" id="sh-total-sales" style="color:var(--green);">0</div><div class="stat-label">إجمالي مبيعات الورديات (EGP)</div></div>
+      <div class="stat-card" style="background:var(--card);border:1px solid var(--purple);"><div class="stat-icon" style="background:var(--purple-bg);color:var(--purple);"><i class="fas fa-file-invoice"></i></div><div class="stat-value" id="sh-total-invoices" style="color:var(--purple);">0</div><div class="stat-label">إجمالي الفواتير</div></div>
+      <div class="stat-card" style="background:var(--card);border:1px solid var(--yellow);"><div class="stat-icon" style="background:var(--yellow-bg);color:var(--yellow);"><i class="fas fa-clock"></i></div><div class="stat-value" id="sh-avg-duration" style="color:var(--yellow);">0</div><div class="stat-label">متوسط مدة الوردية (ساعة)</div></div>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>رقم الوردية</th>
+              <th>الفرع</th>
+              <th>الموظف</th>
+              <th>بداية الوردية</th>
+              <th>نهاية الوردية</th>
+              <th>المدة</th>
+              <th>الفواتير</th>
+              <th>المبيعات</th>
+              <th>الحالة</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="shifts-tbl"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -1349,6 +1431,7 @@ body.printing-report .print-report-header{
   <div class="modal-body">
     <div class="form-row form-row-2 mb-3"><div class="fg"><label>اسم المستخدم (username) *</label><input class="fc" id="uf-username" placeholder="فقط أحرف وأرقام"></div><div class="fg"><label>الاسم الكامل *</label><input class="fc" id="uf-name" placeholder="الاسم الظاهر"></div></div>
     <div class="form-row form-row-2 mb-3"><div class="fg"><label>كلمة المرور *</label><input class="fc" type="password" id="uf-pass" placeholder="6 أحرف على الأقل"></div><div class="fg"><label>الدور</label><select class="fc" id="uf-role"><option value="admin">مدير (Admin)</option><option value="cashier">كاشير (Cashier)</option><option value="accountant">محاسب (Accountant)</option></select></div></div>
+    <div class="form-row mb-3"><div class="fg"><label>الفرع المعيّن</label><select class="fc" id="uf-branch"><option value="">-- كل الفروع (غير مقيّد) --</option></select></div></div>
     <div class="form-row mb-3"><div class="fg"><label>الحالة</label><select class="fc" id="uf-status"><option value="active">نشط</option><option value="inactive">معطل</option></select></div></div>
   </div>
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('modal-user')">إلغاء</button><button class="btn btn-primary" onclick="saveUser()"><i class="fas fa-save"></i> حفظ</button></div>
@@ -1423,6 +1506,60 @@ body.printing-report .print-report-header{
     <div class="form-row"><div class="fg"><label>ملاحظات</label><textarea class="fc" id="wf-notes" rows="2"></textarea></div></div>
   </div>
   <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('modal-wh')">إلغاء</button><button class="btn btn-primary" onclick="saveWarehouse()"><i class="fas fa-save"></i> حفظ</button></div>
+</div>
+</div>
+
+<!-- Branch Modal -->
+<div class="overlay" id="modal-branch">
+<div class="modal lg">
+  <div class="modal-head">
+    <h3><i class="fas fa-code-branch" style="color:var(--purple)"></i> <span id="branch-modal-title">إضافة فرع جديد</span></h3>
+    <button class="close-btn" onclick="closeModal('modal-branch')"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-row form-row-2 mb-3">
+      <div class="fg"><label>اسم الفرع *</label><input class="fc" id="bf-name" placeholder="مثال: الفرع الرئيسي"></div>
+      <div class="fg"><label>كود الفرع *</label><input class="fc" id="bf-code" placeholder="مثال: BR01" style="text-transform:uppercase;"></div>
+    </div>
+    <div class="form-row form-row-2 mb-3">
+      <div class="fg"><label>العنوان</label><input class="fc" id="bf-addr" placeholder="عنوان الفرع"></div>
+      <div class="fg"><label>رقم الهاتف</label><input class="fc" id="bf-phone" placeholder="01xxxxxxxxx"></div>
+    </div>
+    <div class="form-row mb-3">
+      <div class="fg"><label>المدير المسؤول</label>
+        <select class="fc" id="bf-manager">
+          <option value="">-- لا يوجد مدير --</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row mb-3">
+      <div class="fg"><label>الموظفون المعيّنون</label>
+        <div id="bf-users-list" style="border:1px solid var(--border);border-radius:9px;padding:10px;max-height:160px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px;"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>ملاحظات</label><textarea class="fc" id="bf-notes" rows="2"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-branch')">إلغاء</button>
+    <button class="btn btn-primary" onclick="saveBranch()"><i class="fas fa-save"></i> حفظ الفرع</button>
+  </div>
+</div>
+</div>
+
+<!-- Shift View Modal -->
+<div class="overlay" id="modal-shift-view">
+<div class="modal xl">
+  <div class="modal-head">
+    <h3><i class="fas fa-business-time" style="color:var(--accent)"></i> تفاصيل الوردية</h3>
+    <button class="close-btn" onclick="closeModal('modal-shift-view')"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="modal-body" id="shift-view-body"></div>
+  <div class="modal-foot">
+    <button class="btn btn-ghost" onclick="closeModal('modal-shift-view')">إغلاق</button>
+    <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> طباعة تقرير الوردية</button>
+  </div>
 </div>
 </div>
 
@@ -1962,6 +2099,7 @@ const S = {
   products:{}, customers:{}, warehouses:{}, sales:{},
   purchases:{}, expenses:{}, suppliers:{}, movements:{},
   categories:{}, cashboxes:{}, cashboxLog:{}, users:{}, returns:{},
+  branches:{}, shifts:{},
   settings:{
     company:'Computer Technology Group', phone:'01028631512',
     web:'https://computer.ordersapps.com/ar', addr:'', curr:'EGP',
@@ -1976,23 +2114,46 @@ window.addEventListener('fbReady',()=>{
   FB.db=DB; FB.$ref=window.$ref; FB.$set=window.$set; FB.$push=window.$push;
   FB.$update=window.$update; FB.$remove=window.$remove; FB.$onValue=window.$onValue;
 
-  const listen=(path,cb)=>FB.$onValue(FB.$ref(DB,'ctg/'+path),snap=>cb(snap.val()||{}));
-  // حفظ فوري في IDB عند كل تحديث — يضمن أن الأوف لاين دائماً نسخة حديثة
-  const listenAndSave=(path,cb)=>listen(path,v=>{cb(v);IDB.saveStore(path,v).catch(()=>{});});
-  listenAndSave('products',v=>{S.products=v;renderProducts();renderPosGrid();updateDashboard();updateBCSelects();fillCatSelects();renderWarehouses();renderCategories();});
-  listenAndSave('customers',v=>{S.customers=v;renderCustomers();updateCustSelects();updateDashboard();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listenAndSave('warehouses',v=>{S.warehouses=v;renderWarehouses();updateWhSelects();updateDashboard();});
-  listenAndSave('sales',v=>{S.sales=v;renderSales();updateDashboard();updateFinance();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listenAndSave('purchases',v=>{S.purchases=v;renderPurchases();renderSuppliers();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
-  listenAndSave('expenses',v=>{S.expenses=v;renderExpenses();updateFinance();});
-  listenAndSave('suppliers',v=>{S.suppliers=v;renderSuppliers();fillSupSelects();});
-  listenAndSave('movements',v=>{S.movements=v;renderMovements();});
-  listenAndSave('categories',v=>{S.categories=v;renderCategories();fillCatSelects();renderProducts();});
-  listenAndSave('cashboxes',v=>{S.cashboxes=v;renderCashboxes();fillCashboxSelects();});
-  listenAndSave('cashboxLog',v=>{S.cashboxLog=v;renderCashboxLog();});
-  listenAndSave('returns',v=>{S.returns=v;if(document.getElementById('pg-returns')?.classList.contains('active'))renderReturns();});
-  listen('settings',v=>{if(v&&v.company){S.settings={...S.settings,...v};IDB.saveStore('settings',S.settings).catch(()=>{});loadSettingsUI();if(document.getElementById('pg-inv-settings')?.classList.contains('active'))loadInvSettingsUI();}});
-  listen('users',v=>{S.users=v||{};IDB.saveStore('users',S.users).catch(()=>{});renderUsers();});
+  // الاستماع لبيانات branches وusers دائماً من الجذر المشترك
+  const listenRoot=(path,cb)=>FB.$onValue(FB.$ref(DB,'ctg/'+path),snap=>cb(snap.val()||{}));
+  const listenRootAndSave=(path,cb)=>listenRoot(path,v=>{cb(v);IDB.saveStore(path,v).catch(()=>{});});
+
+  // بيانات مشتركة (لا تتغير بالفرع)
+  listenRootAndSave('branches',v=>{S.branches=v||{};renderBranches();fillBranchSelects();fillLoginBranchSelect();});
+  listenRoot('users',v=>{S.users=v||{};IDB.saveStore('users',S.users).catch(()=>{});renderUsers();});
+  listenRoot('settings',v=>{if(v&&v.company){S.settings={...S.settings,...v};IDB.saveStore('settings',S.settings).catch(()=>{});loadSettingsUI();if(document.getElementById('pg-inv-settings')?.classList.contains('active'))loadInvSettingsUI();}});
+
+  // دالة تُشغَّل بعد تحديد الفرع لتحميل بياناته
+  window._branchListeners=[];
+  window.initBranchListeners=function(){
+    // إلغاء الاستماعات السابقة
+    window._branchListeners.forEach(unsub=>{ try{unsub();}catch(e){} });
+    window._branchListeners=[];
+
+    const branchId=CURRENT_USER?.activeBranchId||'';
+    const root=branchId?`ctg_br_${branchId}/`:'ctg/';
+
+    const bListen=(path,cb)=>{
+      const ref=FB.$ref(DB,root+path);
+      const unsub=FB.$onValue(ref,snap=>cb(snap.val()||{}));
+      window._branchListeners.push(unsub);
+    };
+    const bListenAndSave=(path,cb)=>bListen(path,v=>{cb(v);IDB.saveStore(path+'_'+branchId,v).catch(()=>{});});
+
+    bListenAndSave('products',v=>{S.products=v;renderProducts();renderPosGrid();updateDashboard();updateBCSelects();fillCatSelects();renderWarehouses();renderCategories();});
+    bListenAndSave('customers',v=>{S.customers=v;renderCustomers();updateCustSelects();updateDashboard();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+    bListenAndSave('warehouses',v=>{S.warehouses=v;renderWarehouses();updateWhSelects();updateDashboard();});
+    bListenAndSave('sales',v=>{S.sales=v;renderSales();updateDashboard();updateFinance();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+    bListenAndSave('purchases',v=>{S.purchases=v;renderPurchases();renderSuppliers();if(document.getElementById('pg-debts')?.classList.contains('active'))renderDebtsPage();});
+    bListenAndSave('expenses',v=>{S.expenses=v;renderExpenses();updateFinance();});
+    bListenAndSave('suppliers',v=>{S.suppliers=v;renderSuppliers();fillSupSelects();});
+    bListenAndSave('movements',v=>{S.movements=v;renderMovements();});
+    bListenAndSave('categories',v=>{S.categories=v;renderCategories();fillCatSelects();renderProducts();});
+    bListenAndSave('cashboxes',v=>{S.cashboxes=v;renderCashboxes();fillCashboxSelects();});
+    bListenAndSave('cashboxLog',v=>{S.cashboxLog=v;renderCashboxLog();});
+    bListenAndSave('returns',v=>{S.returns=v;if(document.getElementById('pg-returns')?.classList.contains('active'))renderReturns();});
+    bListenAndSave('shifts',v=>{S.shifts=v||{};if(document.getElementById('pg-shifts')?.classList.contains('active'))renderShifts();updateActiveShiftIndicator();});
+  };
 
   setTimeout(async()=>{
     document.getElementById('loading').classList.add('out');
@@ -2029,6 +2190,8 @@ const PAGE_CFG={
   customers:{title:'العملاء',icon:'fa-users'},
   products:{title:'المنتجات',icon:'fa-laptop'},
   returns:{title:'المرتجعات',icon:'fa-undo-alt'},
+  branches:{title:'إدارة الفروع',icon:'fa-code-branch'},
+  shifts:{title:'الوردية',icon:'fa-business-time'},
   categories:{title:'إدارة الفئات',icon:'fa-tags'},
   warehouses:{title:'المخازن',icon:'fa-warehouse'},
   purchases:{title:'المشتريات',icon:'fa-cart-plus'},
@@ -2058,6 +2221,8 @@ function nav(name){
   if(name==='reports') setPeriod('month');
   if(name==='debts') renderDebtsPage();
   if(name==='returns') renderReturns();
+  if(name==='branches'){renderBranches();}
+  if(name==='shifts'){renderShifts();}
   if(name==='users') renderUsers();
   if(name==='pos'){
     setTimeout(()=>document.getElementById('pos-scan-input')?.focus(),100);
@@ -2151,11 +2316,21 @@ function today(){return new Date().toISOString().split('T')[0];}
 const PAY_NAMES={cash:'نقدي',card:'بطاقة',transfer:'تحويل',credit:'آجل',check:'شيك'};
 const CB_TYPES={cash:'نقدي',bank:'بنكي',transfer:'تحويل',card:'بطاقة'};
 
-// DB helpers
-async function dbSet(path,val){await FB.$set(FB.$ref(DB,'ctg/'+path),val);}
-async function dbPush(path,val){return await FB.$push(FB.$ref(DB,'ctg/'+path),val);}
-async function dbUpdate(path,val){await FB.$update(FB.$ref(DB,'ctg/'+path),val);}
-async function dbRemove(path){await FB.$remove(FB.$ref(DB,'ctg/'+path));}
+// DB helpers — المسار يتغير تلقائياً بناءً على الفرع النشط
+// المدير الرئيسي (بدون فرع) → ctg/
+// أي فرع آخر → ctg_br_BRANCHID/
+function getDBRoot(){
+  const branchId=CURRENT_USER?.activeBranchId||'';
+  if(!branchId) return 'ctg/';
+  return `ctg_br_${branchId}/`;
+}
+async function dbSet(path,val){await FB.$set(FB.$ref(DB,getDBRoot()+path),val);}
+async function dbPush(path,val){return await FB.$push(FB.$ref(DB,getDBRoot()+path),val);}
+async function dbUpdate(path,val){await FB.$update(FB.$ref(DB,getDBRoot()+path),val);}
+async function dbRemove(path){await FB.$remove(FB.$ref(DB,getDBRoot()+path));}
+// Special: always write to root ctg/ (shared between all branches)
+async function dbUpdateRoot(path,val){await FB.$update(FB.$ref(DB,'ctg/'+path),val);}
+async function dbRemoveRoot(path){await FB.$remove(FB.$ref(DB,'ctg/'+path));}
 
 // ============================================================
 // CATEGORIES
@@ -2378,7 +2553,7 @@ async function saveCashboxTx(){
 
 function fillCashboxSelects(){
   const opts='<option value="">-- بدون خزينة --</option>'+Object.entries(S.cashboxes).map(([id,cb])=>`<option value="${id}">${cb.name} (${N(cb.balance||0)} EGP)</option>`).join('');
-  ['pos-cashbox','mi-cashbox','purf-cashbox','ef-cashbox'].forEach(elId=>{
+  ['pos-cashbox','mi-cashbox','purf-cashbox','ef-cashbox','retf-cashbox'].forEach(elId=>{
     const el=document.getElementById(elId);if(el)el.innerHTML=opts;
   });
   // Fill debt payment cashbox select (required - money must go to a treasury)
@@ -2877,6 +3052,13 @@ async function completeSale(){
   try{
     const saleId=uid();
     await dbUpdate(`sales/${saleId}`,saleData);
+    // Update shift stats
+    if(ACTIVE_SHIFT?.id){
+      const newCount=(ACTIVE_SHIFT.salesCount||0)+1;
+      const newTotal=(ACTIVE_SHIFT.salesTotal||0)+(+saleData.total||0);
+      await dbUpdate('shifts/'+ACTIVE_SHIFT.id,{salesCount:newCount,salesTotal:newTotal});
+      ACTIVE_SHIFT.salesCount=newCount;ACTIVE_SHIFT.salesTotal=newTotal;
+    }
     for(const it of cart){
       const p=S.products[it.prodId];
       if(p)await dbUpdate(`products/${it.prodId}`,{qty:Math.max(0,(+p.qty||0)-it.qty)});
@@ -2926,7 +3108,12 @@ function renderSales(){
         <td style="color:${(s.balance||0)>0?'var(--red)':'var(--text2)'};">${N(s.balance||0)} EGP</td>
         <td><span class="badge ${cls}">${lbl}</span></td>
         <td style="font-size:11px;color:var(--text2);">${s.createdBy||'-'}</td>
-        <td style="white-space:nowrap;"><button class="btn btn-ghost btn-xs" onclick="viewSale('${id}')"><i class="fas fa-eye"></i></button> ${(s.balance||0)>0?`<button class="btn btn-success btn-xs" onclick="openPayDebt('sale','${id}','${id}')" title="تحصيل الدين"><i class="fas fa-hand-holding-usd"></i></button>`:''} <button class="btn btn-danger btn-xs" onclick="delSale('${id}')"><i class="fas fa-trash"></i></button></td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-ghost btn-xs" onclick="viewSale('${id}')" title="عرض"><i class="fas fa-eye"></i></button>
+          <button class="btn btn-xs" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);opacity:.85;" onclick="openReturnFromInvoice('sale','${id}')" title="إنشاء مرتجع لهذه الفاتورة"><i class="fas fa-undo-alt"></i></button>
+          ${(s.balance||0)>0?`<button class="btn btn-success btn-xs" onclick="openPayDebt('sale','${id}','${id}')" title="تحصيل الدين"><i class="fas fa-hand-holding-usd"></i></button>`:''}
+          <button class="btn btn-danger btn-xs" onclick="delSale('${id}')" title="حذف"><i class="fas fa-trash"></i></button>
+        </td>
       </tr>`;
     }).join('')
     :'<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:20px;">لا توجد فواتير</td></tr>';
@@ -2991,6 +3178,8 @@ async function saveManualInvoice(){
   };
   try{
     saleData.createdBy=getCU();saleData.createdAt=saleData.createdAt||new Date().toISOString();
+    saleData.shiftId=ACTIVE_SHIFT?.id||'';
+    saleData.branchId=CURRENT_USER?.activeBranchId||'';
     const r=await dbPush('sales',saleData);
     if(custId){const c=S.customers[custId];await dbUpdate('customers/'+custId,{totalBuy:(c.totalBuy||0)+total,balance:(c.balance||0)+Math.max(0,total-paid)});}
     if(cbId&&paid>0&&miPayMethod!=='credit'){
@@ -3568,7 +3757,12 @@ function renderPurchases(){
         <td style="color:${(p.balance||0)>0?'var(--red)':'var(--text2)'};">${N(p.balance||0)} EGP</td>
         <td><span class="badge ${cls}">${lbl}</span> <span class="badge badge-purple">${PAY_NAMES[p.paymentMethod]||p.paymentMethod}</span></td>
         <td style="font-size:11px;color:var(--text2);">${p.createdBy||'-'}</td>
-        <td style="white-space:nowrap;"><button class="btn btn-ghost btn-xs" onclick="viewPurchase('${id}')" title="عرض"><i class="fas fa-eye"></i></button> ${(p.balance||0)>0?`<button class="btn btn-success btn-xs" onclick="openPayDebt('pur','${id}','${id}')" title="تسديد"><i class="fas fa-hand-holding-usd"></i></button> `:''}<button class="btn btn-danger btn-xs" onclick="delPurchase('${id}')"><i class="fas fa-trash"></i></button></td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-ghost btn-xs" onclick="viewPurchase('${id}')" title="عرض"><i class="fas fa-eye"></i></button>
+          <button class="btn btn-xs" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);opacity:.85;" onclick="openReturnFromInvoice('purchase','${id}')" title="إنشاء مرتجع لهذه الفاتورة"><i class="fas fa-undo-alt"></i></button>
+          ${(p.balance||0)>0?`<button class="btn btn-success btn-xs" onclick="openPayDebt('pur','${id}','${id}')" title="تسديد"><i class="fas fa-hand-holding-usd"></i></button> `:''}
+          <button class="btn btn-danger btn-xs" onclick="delPurchase('${id}')"><i class="fas fa-trash"></i></button>
+        </td>
       </tr>`;
     }).join('')
     :'<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:16px;">لا توجد مشتريات</td></tr>';
@@ -4238,7 +4432,7 @@ async function saveSettings(){
     defaultTax:parseFloat(document.getElementById('s-default-tax').value)||0,
     defaultTaxType:document.getElementById('s-default-tax-type').value||'percent'
   };
-  await dbUpdate('settings',S.settings).then(()=>toast('تم حفظ الإعدادات')).catch(e=>toast(e.message,'error'));
+  await dbUpdateRoot('settings',S.settings).then(()=>toast('تم حفظ الإعدادات')).catch(e=>toast(e.message,'error'));
 }
 function exportData(){
   const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
@@ -4708,7 +4902,7 @@ async function saveInvSettings(){
     invLogo:S.settings.invLogo||''
   };
   S.settings={...S.settings,...invCfg};
-  await dbUpdate('settings',S.settings).then(()=>toast('تم حفظ إعدادات الفاتورة ✅')).catch(e=>toast(e.message,'error'));
+  await dbUpdateRoot('settings',S.settings).then(()=>toast('تم حفظ إعدادات الفاتورة ✅')).catch(e=>toast(e.message,'error'));
 }
 function previewInvoiceSample(){
   // Build a sample sale to preview
@@ -4732,7 +4926,7 @@ function previewInvoiceSample(){
 async function getNextInvNum(){
   const counter=S.settings.invCounter||0;
   const next=counter+1;
-  await dbUpdate('settings',{invCounter:next});
+  await dbUpdateRoot('settings',{invCounter:next});
   S.settings.invCounter=next;
   const year=new Date().getFullYear();
   return `INV-${year}-${String(next).padStart(4,'0')}`;
@@ -4742,6 +4936,8 @@ async function getNextInvNum(){
 // AUTH & USERS SYSTEM
 // ============================================================
 let CURRENT_USER=null;
+let CURRENT_BRANCH=null;
+let ACTIVE_SHIFT=null;
 
 // ============================================================
 // مساعد: اسم المستخدم الحالي لتسجيل العمليات
@@ -4755,6 +4951,7 @@ function getCU(){
 function doLogin(){
   const username=(document.getElementById('login-user').value||'').trim().toLowerCase();
   const pass=document.getElementById('login-pass').value||'';
+  const selectedBranch=document.getElementById('login-branch')?.value||'';
   const errEl=document.getElementById('login-err');
   errEl.style.display='none';
   if(!username||!pass){errEl.textContent='يرجى إدخال اسم المستخدم وكلمة المرور';errEl.style.display='block';return;}
@@ -4763,22 +4960,38 @@ function doLogin(){
   if(!found){errEl.textContent='اسم المستخدم غير موجود أو معطل';errEl.style.display='block';return;}
   const [uid_u,user]=found;
   if(user.password!==btoa(pass)){errEl.textContent='كلمة المرور غير صحيحة';errEl.style.display='block';return;}
-  CURRENT_USER={...user,id:uid_u};
-  dbUpdate('users/'+uid_u,{lastLogin:new Date().toISOString()});
+  // Check branch access: if user has a branchId, they can only login to that branch (unless admin)
+  if(user.role!=='admin'&&user.branchId){
+    if(selectedBranch&&selectedBranch!==user.branchId){
+      errEl.textContent='ليس لديك صلاحية الدخول على هذا الفرع';errEl.style.display='block';return;
+    }
+  }
+  // Determine effective branch
+  const effectiveBranch=selectedBranch||(user.branchId||'');
+  CURRENT_USER={...user,id:uid_u,activeBranchId:effectiveBranch};
+  CURRENT_BRANCH=effectiveBranch?(S.branches||{})[effectiveBranch]||null:null;
+  dbUpdateRoot('users/'+uid_u,{lastLogin:new Date().toISOString()});
   sessionStorage.setItem('ctg-user',JSON.stringify(CURRENT_USER));
-  // حفظ بيانات المستخدمين في IDB لضمان الوصول أوف لاين
   IDB.saveStore('users',S.users||{}).catch(()=>{});
+  // تحميل بيانات الفرع المحدد
+  if(window.initBranchListeners) window.initBranchListeners();
   showApp();
+  // Auto-start shift
+  startShiftAuto();
 }
 
-function doLogout(){
+async function doLogout(){
   if(!confirm('تسجيل الخروج؟'))return;
+  await endShiftAuto('logout');
   CURRENT_USER=null;
+  CURRENT_BRANCH=null;
   sessionStorage.removeItem('ctg-user');
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('login-user').value='';
   document.getElementById('login-pass').value='';
   document.querySelector('.layout').style.display='none';
+  document.getElementById('shift-indicator').style.display='none';
+  document.getElementById('branch-indicator').style.display='none';
 }
 
 function showApp(){
@@ -4791,7 +5004,61 @@ function showApp(){
     info.style.display='flex';
     info.innerHTML=`<i class="fas fa-user-circle" style="color:var(--accent);font-size:16px;"></i> <strong>${CURRENT_USER.name||CURRENT_USER.username}</strong> <span class="user-role-badge ${roleClass[CURRENT_USER.role]||'role-accountant'}">${roleMap[CURRENT_USER.role]||CURRENT_USER.role}</span>`;
   }
+  // Show branch indicator
+  const branchInd=document.getElementById('branch-indicator');
+  const branchName=document.getElementById('branch-indicator-name');
+  if(CURRENT_BRANCH&&branchInd&&branchName){
+    branchName.textContent=CURRENT_BRANCH.name||'فرع';
+    branchInd.style.display='flex';
+  } else if(branchInd){
+    branchInd.style.display='none';
+  }
+  // Show branch switcher for super admin only
+  const switcher=document.getElementById('sb-branch-switcher');
+  if(switcher){
+    const isSuperAdmin=CURRENT_USER?.role==='admin'&&!CURRENT_USER?.activeBranchId;
+    switcher.style.display=isSuperAdmin?'block':'none';
+    if(isSuperAdmin) fillSbBranchCtx();
+  }
   applyPermissions();
+  updateActiveShiftIndicator();
+  fillLoginBranchSelect();
+}
+
+function fillSbBranchCtx(){
+  const el=document.getElementById('sb-branch-ctx');if(!el)return;
+  el.innerHTML='<option value="">📊 الفرع الرئيسي (كل البيانات)</option>'+
+    Object.entries(S.branches||{}).map(([id,b])=>`<option value="${id}">🏢 ${b.name} (${b.code||''})</option>`).join('');
+  el.value=CURRENT_USER?.viewingBranchId||'';
+}
+
+function switchBranchContext(branchId){
+  if(!CURRENT_USER)return;
+  // Update viewing context (doesn't change login branch, just what data to show)
+  CURRENT_USER.viewingBranchId=branchId;
+  CURRENT_USER.activeBranchId=branchId;
+  CURRENT_BRANCH=branchId?(S.branches||{})[branchId]||null:null;
+  sessionStorage.setItem('ctg-user',JSON.stringify(CURRENT_USER));
+  // Update branch indicator
+  const branchInd=document.getElementById('branch-indicator');
+  const branchName=document.getElementById('branch-indicator-name');
+  if(branchId&&CURRENT_BRANCH){
+    if(branchInd)branchInd.style.display='flex';
+    if(branchName)branchName.textContent=CURRENT_BRANCH.name;
+  } else {
+    if(branchInd)branchInd.style.display='none';
+  }
+  // Reload branch listeners with new context
+  if(window.initBranchListeners) window.initBranchListeners();
+  // Reset S data to avoid showing stale branch data during reload
+  S.products={};S.customers={};S.warehouses={};S.sales={};
+  S.purchases={};S.expenses={};S.suppliers={};S.movements={};
+  S.categories={};S.cashboxes={};S.cashboxLog={};S.returns={};S.shifts={};
+  // Re-render all visible sections
+  renderProducts();renderCustomers();renderSales();renderPurchases();
+  renderExpenses();renderCashboxes();updateDashboard();
+  const label=branchId?(S.branches||{})[branchId]?.name||'فرع':'الفرع الرئيسي';
+  toast(`📊 تم التبديل إلى: ${label}`,'info');
 }
 
 function applyPermissions(){
@@ -4832,6 +5099,8 @@ function applyPermissions(){
     document.querySelector('.sb-item[data-page="inv-settings"]')?.remove();
     document.querySelector('.sb-item[data-page="categories"]')?.remove();
     document.querySelector('.sb-item[data-page="barcode"]')?.remove();
+    document.querySelector('.sb-item[data-page="branches"]')?.remove();
+    document.querySelector('.sb-item[data-page="shifts"]')?.remove();
     // إخفاء أزرار الإضافة والحذف في المنتجات
     document.querySelectorAll('.btn-danger').forEach(btn=>{if(!btn.classList.contains('no-perm-hide'))btn.style.display='none';});
   }
@@ -4844,6 +5113,9 @@ function checkSession(){
   if(saved){
     try{
       CURRENT_USER=JSON.parse(saved);
+      const branchId=CURRENT_USER.activeBranchId||'';
+      CURRENT_BRANCH=branchId?(S.branches||{})[branchId]||null:null;
+      if(window.initBranchListeners) window.initBranchListeners();
       showApp();
       return true;
     }catch(e){}
@@ -4873,7 +5145,7 @@ async function initDefaultUsers(){
         createdAt:new Date().toISOString(),
         lastLogin:null
       };
-      await dbUpdate('users/'+adminId,adminData);
+      await dbUpdateRoot('users/'+adminId,adminData);
       usersFromDB[adminId]=adminData;
     }
 
@@ -4891,7 +5163,7 @@ async function initDefaultUsers(){
         createdAt:new Date().toISOString(),
         lastLogin:null
       };
-      await dbUpdate('users/'+devId,devData);
+      await dbUpdateRoot('users/'+devId,devData);
       usersFromDB[devId]=devData;
     }
 
@@ -4904,14 +5176,14 @@ async function initDefaultUsers(){
     if(!adminExists){
       const adminId='admin-default';
       const adminData={username:'admin',password:btoa('admin123'),name:'المدير الرئيسي',role:'admin',status:'active',createdAt:new Date().toISOString(),lastLogin:null};
-      await dbUpdate('users/'+adminId,adminData);
+      await dbUpdateRoot('users/'+adminId,adminData);
       S.users={...users,[adminId]:adminData};
     }
     const devExists=Object.values(S.users||{}).some(u=>u.username==='ctg_dev');
     if(!devExists){
       const devId='dev-system-001';
       const devData={username:'ctg_dev',password:btoa('CTG@Dev#2025!'),name:'المبرمج',role:'admin',status:'active',hidden:true,createdAt:new Date().toISOString(),lastLogin:null};
-      await dbUpdate('users/'+devId,devData);
+      await dbUpdateRoot('users/'+devId,devData);
       S.users={...(S.users||{}),[devId]:devData};
     }
   }
@@ -4943,6 +5215,7 @@ function openAddUser(){
   editingUser=null;
   document.getElementById('user-modal-title').textContent='مستخدم جديد';
   resetForm('uf');
+  fillUserBranchSelect('');
   openModal('modal-user');
 }
 
@@ -4956,7 +5229,14 @@ function editUser(id){
   document.getElementById('uf-pass').value='';
   document.getElementById('uf-role').value=u.role||'cashier';
   document.getElementById('uf-status').value=u.status||'active';
+  fillUserBranchSelect(u.branchId||'');
   openModal('modal-user');
+}
+
+function fillUserBranchSelect(selectedId=''){
+  const el=document.getElementById('uf-branch');if(!el)return;
+  el.innerHTML='<option value="">-- كل الفروع (غير مقيّد) --</option>'+
+    Object.entries(S.branches||{}).map(([id,b])=>`<option value="${id}" ${id===selectedId?'selected':''}>${b.name}</option>`).join('');
 }
 
 async function saveUser(){
@@ -4966,20 +5246,21 @@ async function saveUser(){
   const pass=document.getElementById('uf-pass').value;
   const role=document.getElementById('uf-role').value;
   const status=document.getElementById('uf-status').value;
+  const branchId=document.getElementById('uf-branch')?.value||'';
   if(!username){toast('يرجى إدخال اسم المستخدم','error');return;}
   if(!name){toast('يرجى إدخال الاسم الكامل','error');return;}
   if(!editingUser&&!pass){toast('يرجى إدخال كلمة المرور','error');return;}
   if(pass&&pass.length<6){toast('كلمة المرور يجب أن تكون 6 أحرف على الأقل','error');return;}
   const existing=Object.entries(S.users||{}).find(([id,u])=>u.username===username&&id!==editingUser);
   if(existing){toast('اسم المستخدم مستخدم بالفعل','error');return;}
-  const data={username,name,role,status,updatedAt:new Date().toISOString()};
+  const data={username,name,role,status,branchId,updatedAt:new Date().toISOString()};
   if(pass)data.password=btoa(pass);
   try{
     if(editingUser){
-      await dbUpdate('users/'+editingUser,data);
+      await dbUpdateRoot('users/'+editingUser,data);
     }else{
       data.createdAt=new Date().toISOString();data.lastLogin=null;
-      await dbUpdate('users/'+uid(),data);
+      await dbUpdateRoot('users/'+uid(),data);
     }
     closeModal('modal-user');toast('تم حفظ المستخدم ✅');
   }catch(e){toast('خطأ: '+e.message,'error');}
@@ -4990,7 +5271,7 @@ async function delUser(id){
   const u=(S.users||{})[id];
   if(u&&u.hidden){toast('لا يمكن حذف هذا الحساب','error');return;}
   if(!confirm('حذف هذا المستخدم؟'))return;
-  await dbRemove('users/'+id);toast('تم الحذف');
+  await dbRemoveRoot('users/'+id);toast('تم الحذف');
 }
 
 // ============================================================
@@ -6018,6 +6299,20 @@ function loadCustomerProfile(id,cObj){
 }
 
 
+// Auto-close shift on window/tab close
+window.addEventListener('beforeunload', ()=>{
+  if(ACTIVE_SHIFT?.id && window._fbAvailable){
+    // Use sendBeacon for reliable close even during unload
+    const endTime=new Date().toISOString();
+    const startMs=new Date(ACTIVE_SHIFT.startTime).getTime();
+    const durationMin=Math.round((Date.now()-startMs)/60000);
+    // Best-effort update via fetch keepalive
+    const dbUrl=`https://actg-9172e-default-rtdb.firebaseio.com/ctg/shifts/${ACTIVE_SHIFT.id}.json`;
+    const body=JSON.stringify({endTime,status:'closed',durationMin,closedReason:'window_close'});
+    navigator.sendBeacon(dbUrl+'?method=PATCH',new Blob([body],{type:'application/json'}));
+  }
+});
+
 // Enter key for login
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&document.getElementById('login-screen')?.style.display!=='none'){
@@ -6033,8 +6328,416 @@ window.nav=function(name){
 };
 
 // ============================================================
-// RETURNS - قسم المرتجعات
+// BRANCHES - إدارة الفروع
 // ============================================================
+
+function fillLoginBranchSelect(){
+  const el=document.getElementById('login-branch');if(!el)return;
+  const branches=S.branches||{};
+  const entries=Object.entries(branches).filter(([,b])=>b.status!=='inactive');
+  el.innerHTML='<option value="">-- اختر الفرع --</option>'+
+    entries.map(([id,b])=>`<option value="${id}">${b.name}</option>`).join('');
+  // If only one branch exists, auto-select it
+  if(entries.length===1) el.value=entries[0][0];
+}
+
+function fillBranchSelects(){
+  fillLoginBranchSelect();
+  if(typeof fillSbBranchCtx==='function') fillSbBranchCtx();
+  // shift branch filter
+  const shBF=document.getElementById('sh-branch-filter');
+  if(shBF){
+    shBF.innerHTML='<option value="">كل الفروع</option>'+
+      Object.entries(S.branches||{}).map(([id,b])=>`<option value="${id}">${b.name}</option>`).join('');
+  }
+  // user branch select
+  fillUserBranchSelect('');
+  // bf-manager
+  const mgr=document.getElementById('bf-manager');
+  if(mgr){
+    mgr.innerHTML='<option value="">-- لا يوجد مدير --</option>'+
+      Object.entries(S.users||{}).filter(([,u])=>!u.hidden&&(u.role==='admin'||u.role==='accountant'))
+      .map(([id,u])=>`<option value="${id}">${u.name||u.username} (${u.role==='admin'?'مدير':'محاسب'})</option>`).join('');
+  }
+}
+
+let editingBranch=null;
+
+function openAddBranch(){
+  editingBranch=null;
+  document.getElementById('branch-modal-title').textContent='إضافة فرع جديد';
+  document.getElementById('bf-name').value='';
+  document.getElementById('bf-code').value='';
+  document.getElementById('bf-addr').value='';
+  document.getElementById('bf-phone').value='';
+  document.getElementById('bf-notes').value='';
+  // fill manager select
+  const mgr=document.getElementById('bf-manager');
+  if(mgr){
+    mgr.innerHTML='<option value="">-- لا يوجد مدير --</option>'+
+      Object.entries(S.users||{}).filter(([,u])=>!u.hidden)
+      .map(([id,u])=>`<option value="${id}">${u.name||u.username} (${{admin:'مدير',cashier:'كاشير',accountant:'محاسب'}[u.role]||u.role})</option>`).join('');
+  }
+  renderBranchUsersList('');
+  openModal('modal-branch');
+}
+
+function editBranch(id){
+  const b=(S.branches||{})[id];if(!b)return;
+  editingBranch=id;
+  document.getElementById('branch-modal-title').textContent='تعديل الفرع';
+  document.getElementById('bf-name').value=b.name||'';
+  document.getElementById('bf-code').value=b.code||'';
+  document.getElementById('bf-addr').value=b.addr||'';
+  document.getElementById('bf-phone').value=b.phone||'';
+  document.getElementById('bf-notes').value=b.notes||'';
+  const mgr=document.getElementById('bf-manager');
+  if(mgr){
+    mgr.innerHTML='<option value="">-- لا يوجد مدير --</option>'+
+      Object.entries(S.users||{}).filter(([,u])=>!u.hidden)
+      .map(([id,u])=>`<option value="${id}">${u.name||u.username} (${{admin:'مدير',cashier:'كاشير',accountant:'محاسب'}[u.role]||u.role})</option>`).join('');
+    mgr.value=b.managerId||'';
+  }
+  renderBranchUsersList(b.managerId||'');
+  openModal('modal-branch');
+}
+
+function renderBranchUsersList(managerId){
+  const el=document.getElementById('bf-users-list');if(!el)return;
+  const users=Object.entries(S.users||{}).filter(([,u])=>!u.hidden);
+  if(!users.length){el.innerHTML='<div style="color:var(--text3);font-size:11px;">لا يوجد مستخدمون</div>';return;}
+  el.innerHTML=users.map(([id,u])=>{
+    const checked=(editingBranch&&(S.branches||{})[editingBranch]?.users||{})[id]?'checked':'';
+    const roleLabel={admin:'مدير',cashier:'كاشير',accountant:'محاسب'}[u.role]||u.role;
+    return`<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:5px 8px;border-radius:7px;border:1px solid var(--border);background:var(--card2);">
+      <input type="checkbox" class="bf-user-cb" value="${id}" ${checked}>
+      <span>${u.name||u.username}</span>
+      <span style="font-size:10px;color:var(--text2);">(${roleLabel})</span>
+    </label>`;
+  }).join('');
+}
+
+async function saveBranch(){
+  const name=(document.getElementById('bf-name').value||'').trim();
+  const code=(document.getElementById('bf-code').value||'').trim().toUpperCase();
+  if(!name){toast('يرجى إدخال اسم الفرع','error');return;}
+  if(!code){toast('يرجى إدخال كود الفرع','error');return;}
+  const managerId=document.getElementById('bf-manager')?.value||'';
+  const addr=document.getElementById('bf-addr').value.trim();
+  const phone=document.getElementById('bf-phone').value.trim();
+  const notes=document.getElementById('bf-notes').value.trim();
+  // Collect selected users
+  const selectedUsers={};
+  document.querySelectorAll('.bf-user-cb:checked').forEach(cb=>{selectedUsers[cb.value]=true;});
+  const data={name,code,addr,phone,notes,managerId,users:selectedUsers,status:'active',updatedAt:new Date().toISOString(),updatedBy:getCU()};
+  try{
+    if(editingBranch){
+      await dbUpdateRoot('branches/'+editingBranch,data);
+    }else{
+      data.createdAt=new Date().toISOString();
+      await dbUpdateRoot('branches/'+uid(),data);
+    }
+    // Update branchId on selected users
+    for(const userId of Object.keys(selectedUsers)){
+      const u=(S.users||{})[userId];
+      if(u&&!u.branchId){
+        await dbUpdateRoot('users/'+userId,{branchId:editingBranch||Object.keys(S.branches||{}).slice(-1)[0]||''});
+      }
+    }
+    closeModal('modal-branch');
+    toast('✅ تم حفظ الفرع بنجاح');
+  }catch(e){toast('خطأ: '+e.message,'error');}
+}
+
+async function delBranch(id){
+  const b=(S.branches||{})[id];if(!b)return;
+  if(!confirm(`حذف الفرع "${b.name}"؟ سيتم إلغاء تعيين الموظفين.`))return;
+  await dbRemoveRoot('branches/'+id);
+  toast('تم حذف الفرع');
+}
+
+function renderBranches(){
+  const el=document.getElementById('branches-grid');if(!el)return;
+  const branches=Object.entries(S.branches||{});
+  if(!branches.length){
+    el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2);">
+      <i class="fas fa-code-branch" style="font-size:40px;opacity:.2;display:block;margin-bottom:12px;"></i>
+      <div>لا توجد فروع — أضف فرعك الأول</div>
+      <button class="btn btn-primary mt-3" onclick="openAddBranch()" style="margin-top:12px;"><i class="fas fa-plus"></i> إضافة فرع</button>
+    </div>`;
+    return;
+  }
+  el.innerHTML=branches.map(([id,b])=>{
+    const assignedUsers=Object.keys(b.users||{}).length;
+    const managerName=(S.users||{})[b.managerId]?.name||'—';
+    const roleMap={admin:'مدير',cashier:'كاشير',accountant:'محاسب'};
+    const usersHtml=Object.keys(b.users||{}).map(uid_=>{
+      const u=(S.users||{})[uid_];if(!u)return'';
+      return`<span style="display:inline-flex;align-items:center;gap:4px;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10px;">
+        <i class="fas fa-user" style="color:var(--accent);font-size:9px;"></i> ${u.name||u.username} <span style="color:var(--text3);">(${roleMap[u.role]||u.role})</span>
+      </span>`;
+    }).filter(Boolean).join(' ');
+    return`<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;right:0;width:4px;height:100%;background:var(--purple);border-radius:0 14px 14px 0;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+        <div>
+          <div style="font-size:15px;font-weight:900;color:var(--text);">${b.name}</div>
+          <div style="font-size:11px;color:var(--purple);font-weight:700;background:var(--purple-bg);padding:2px 8px;border-radius:10px;display:inline-block;margin-top:3px;">${b.code}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-xs" onclick="editBranch('${id}')"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-danger btn-xs" onclick="delBranch('${id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;font-size:12px;">
+        <div style="background:var(--card2);border-radius:8px;padding:8px;">
+          <div style="color:var(--text3);font-size:10px;">المدير المسؤول</div>
+          <div style="font-weight:700;color:var(--text);">${managerName}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:8px;padding:8px;">
+          <div style="color:var(--text3);font-size:10px;">عدد الموظفين</div>
+          <div style="font-weight:700;color:var(--accent);">${assignedUsers} موظف</div>
+        </div>
+        ${b.phone?`<div style="background:var(--card2);border-radius:8px;padding:8px;"><div style="color:var(--text3);font-size:10px;">الهاتف</div><div style="font-weight:700;">${b.phone}</div></div>`:''}
+        ${b.addr?`<div style="background:var(--card2);border-radius:8px;padding:8px;grid-column:${b.phone?'':'1/-1'};"><div style="color:var(--text3);font-size:10px;">العنوان</div><div style="font-weight:700;">${b.addr}</div></div>`:''}
+      </div>
+      ${usersHtml?`<div style="margin-top:10px;"><div style="font-size:10px;color:var(--text3);margin-bottom:6px;">الموظفون المعيّنون:</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${usersHtml}</div></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// SHIFTS - نظام الوردية
+// ============================================================
+
+async function startShiftAuto(){
+  if(!CURRENT_USER)return;
+  // Check if there's already an active shift for this user in this branch
+  const branchId=CURRENT_USER.activeBranchId||'';
+  const existing=Object.entries(S.shifts||{}).find(([,s])=>
+    s.userId===CURRENT_USER.id && s.status==='active'
+  );
+  if(existing){
+    ACTIVE_SHIFT={...existing[1],id:existing[0]};
+    updateActiveShiftIndicator();
+    return;
+  }
+  const shiftData={
+    userId:CURRENT_USER.id,
+    userName:CURRENT_USER.name||CURRENT_USER.username,
+    branchId,
+    branchName:CURRENT_BRANCH?.name||'—',
+    startTime:new Date().toISOString(),
+    endTime:null,
+    status:'active',
+    salesCount:0,
+    salesTotal:0,
+    salesIds:[],
+    notes:''
+  };
+  const shiftId='sh-'+Date.now();
+  await dbUpdate('shifts/'+shiftId,shiftData);
+  ACTIVE_SHIFT={...shiftData,id:shiftId};
+  updateActiveShiftIndicator();
+  toast('🟢 تم فتح وردية جديدة','info');
+}
+
+async function endShiftAuto(reason='logout'){
+  if(!ACTIVE_SHIFT)return;
+  const endTime=new Date().toISOString();
+  const startMs=new Date(ACTIVE_SHIFT.startTime).getTime();
+  const endMs=new Date(endTime).getTime();
+  const durationMin=Math.round((endMs-startMs)/60000);
+  // Calculate sales in this shift
+  const shiftSales=Object.entries(S.sales||{}).filter(([,s])=>
+    s.shiftId===ACTIVE_SHIFT.id
+  );
+  const salesCount=shiftSales.length;
+  const salesTotal=shiftSales.reduce((sum,[,s])=>sum+(+s.total||0),0);
+  await dbUpdate('shifts/'+ACTIVE_SHIFT.id,{
+    endTime,status:'closed',durationMin,salesCount,salesTotal,
+    closedBy:getCU(),closedReason:reason
+  });
+  ACTIVE_SHIFT=null;
+  updateActiveShiftIndicator();
+}
+
+function updateActiveShiftIndicator(){
+  const ind=document.getElementById('shift-indicator');
+  const txt=document.getElementById('shift-indicator-text');
+  const tim=document.getElementById('shift-indicator-time');
+  if(!ind)return;
+  if(!ACTIVE_SHIFT){ind.style.display='none';return;}
+  ind.style.display='flex';
+  const start=new Date(ACTIVE_SHIFT.startTime);
+  const now=new Date();
+  const diffMin=Math.round((now-start)/60000);
+  const hrs=Math.floor(diffMin/60);
+  const mins=diffMin%60;
+  if(txt)txt.textContent=`وردية نشطة — ${ACTIVE_SHIFT.userName||''}`;
+  if(tim)tim.textContent=`${hrs>0?hrs+'س ':''} ${mins}د`;
+  // Update timer every minute
+  clearTimeout(window._shiftTimer);
+  window._shiftTimer=setTimeout(updateActiveShiftIndicator,60000);
+}
+
+function renderShifts(){
+  const tbody=document.getElementById('shifts-tbl');if(!tbody)return;
+  const from=document.getElementById('sh-from')?.value||'';
+  const to=document.getElementById('sh-to')?.value||'';
+  const brFilter=document.getElementById('sh-branch-filter')?.value||'';
+  const allShifts=Object.entries(S.shifts||{});
+  const filtered=allShifts.filter(([,s])=>{
+    const d=(s.startTime||'').slice(0,10);
+    return(!from||d>=from)&&(!to||d<=to)&&(!brFilter||s.branchId===brFilter);
+  }).sort(([,a],[,b])=>new Date(b.startTime)-new Date(a.startTime));
+
+  // Stats
+  const totalSales=filtered.reduce((s,[,sh])=>s+(+sh.salesTotal||0),0);
+  const totalInvoices=filtered.reduce((s,[,sh])=>s+(+sh.salesCount||0),0);
+  const closedShifts=filtered.filter(([,s])=>s.status==='closed');
+  const avgDur=closedShifts.length?Math.round(closedShifts.reduce((s,[,sh])=>s+(+sh.durationMin||0),0)/closedShifts.length/60*10)/10:0;
+  const el=id=>document.getElementById(id);
+  if(el('sh-total-count'))el('sh-total-count').textContent=filtered.length;
+  if(el('sh-total-sales'))el('sh-total-sales').textContent=N(totalSales,0);
+  if(el('sh-total-invoices'))el('sh-total-invoices').textContent=totalInvoices;
+  if(el('sh-avg-duration'))el('sh-avg-duration').textContent=avgDur;
+
+  // Active shift card
+  const activeCard=document.getElementById('active-shift-card');
+  if(activeCard){
+    if(ACTIVE_SHIFT){
+      const start=new Date(ACTIVE_SHIFT.startTime);
+      const diffMin=Math.round((new Date()-start)/60000);
+      activeCard.style.display='block';
+      activeCard.innerHTML=`<div style="background:var(--accent-bg);border:2px solid var(--accent);border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block;animation:pulse 1.5s infinite;"></span>
+          <div>
+            <div style="font-weight:900;color:var(--accent);font-size:13px;">وردية نشطة الآن</div>
+            <div style="font-size:11px;color:var(--text2);">${ACTIVE_SHIFT.userName||'—'} — ${ACTIVE_SHIFT.branchName||'—'} — بدأت: ${fDate(ACTIVE_SHIFT.startTime)} ${new Date(ACTIVE_SHIFT.startTime).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:12px;color:var(--text2);">المدة: <strong style="color:var(--accent);">${Math.floor(diffMin/60)}س ${diffMin%60}د</strong></div>
+          <button class="btn btn-danger btn-sm" onclick="confirmCloseShift()"><i class="fas fa-stop-circle"></i> إنهاء الوردية</button>
+        </div>
+      </div>`;
+    } else {
+      activeCard.style.display='none';
+    }
+  }
+
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:24px;"><i class="fas fa-business-time" style="font-size:28px;opacity:.2;display:block;margin-bottom:8px;"></i>لا توجد ورديات</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=filtered.map(([id,s])=>{
+    const isActive=s.status==='active';
+    const statusBadge=isActive
+      ?`<span class="badge badge-success" style="animation:pulse 2s infinite;"><i class="fas fa-circle" style="font-size:8px;"></i> نشطة</span>`
+      :`<span class="badge" style="background:var(--border);color:var(--text2);">مغلقة</span>`;
+    const dur=s.durationMin?`${Math.floor(s.durationMin/60)}س ${s.durationMin%60}د`:(isActive?'جارية…':'—');
+    const startStr=s.startTime?`${fDate(s.startTime)} ${new Date(s.startTime).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}`:'-';
+    const endStr=s.endTime?`${fDate(s.endTime)} ${new Date(s.endTime).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}`:'-';
+    return`<tr style="${isActive?'background:var(--accent-bg);':''}">
+      <td style="color:var(--accent);font-weight:700;">#${id.slice(-6).toUpperCase()}</td>
+      <td><strong>${s.branchName||'—'}</strong></td>
+      <td>${s.userName||'—'}</td>
+      <td style="font-size:11px;">${startStr}</td>
+      <td style="font-size:11px;">${endStr}</td>
+      <td>${dur}</td>
+      <td style="color:var(--purple);font-weight:700;">${s.salesCount||0}</td>
+      <td style="color:var(--green);font-weight:700;">${N(s.salesTotal||0)} EGP</td>
+      <td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-ghost btn-xs" onclick="viewShift('${id}')" title="تفاصيل الوردية"><i class="fas fa-eye"></i></button>
+        ${isActive&&ACTIVE_SHIFT?.id===id?`<button class="btn btn-danger btn-xs" onclick="confirmCloseShift()" title="إنهاء الوردية"><i class="fas fa-stop-circle"></i></button>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function confirmCloseShift(){
+  if(!ACTIVE_SHIFT)return;
+  if(!confirm('هل تريد إنهاء الوردية الحالية؟'))return;
+  await endShiftAuto('manual');
+  toast('✅ تم إنهاء الوردية بنجاح');
+  renderShifts();
+}
+
+function viewShift(id){
+  const s=(S.shifts||{})[id];if(!s)return;
+  const shiftSales=Object.entries(S.sales||{}).filter(([,sale])=>sale.shiftId===id);
+  const salesHtml=shiftSales.length
+    ?shiftSales.map(([sid,sale],i)=>`
+      <tr style="background:${i%2===0?'#fff':'#f9f9f9'};border-bottom:1px solid #eee;">
+        <td style="padding:7px 10px;">${i+1}</td>
+        <td style="padding:7px 10px;font-weight:700;color:#1a6aff;">#${sid.slice(-5).toUpperCase()}</td>
+        <td style="padding:7px 10px;">${sale.custName||sale.customerName||'نقدي'}</td>
+        <td style="padding:7px 10px;">${fDate(sale.date)}</td>
+        <td style="padding:7px 10px;font-weight:700;">${N(sale.total)} EGP</td>
+        <td style="padding:7px 10px;">${sale.paymentMethod==='cash'?'نقدي':sale.paymentMethod==='card'?'بطاقة':'آجل'}</td>
+      </tr>`).join('')
+    :'<tr><td colspan="6" style="text-align:center;padding:12px;color:#888;">لا توجد مبيعات في هذه الوردية</td></tr>';
+  const dur=s.durationMin?`${Math.floor(s.durationMin/60)} ساعة و ${s.durationMin%60} دقيقة`:'جارية';
+  const st=S.settings||{};
+  const html=`<div style="direction:rtl;font-family:Cairo,Arial,sans-serif;">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:14px;">
+      <div>
+        <div style="font-size:16px;font-weight:900;">${st.company||'Computer Technology Group'}</div>
+        <div style="font-size:11px;color:#555;">${st.phone||''}</div>
+      </div>
+      <div style="text-align:left;">
+        <div style="font-size:18px;font-weight:900;color:#1a6aff;">تقرير الوردية</div>
+        <div style="font-size:10px;color:#555;">#${id.slice(-6).toUpperCase()}</div>
+      </div>
+    </div>
+    <!-- Info -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+      <div style="background:#f5f5f5;border-radius:8px;padding:10px;"><div style="font-size:10px;color:#666;">الموظف</div><div style="font-weight:700;">${s.userName||'—'}</div></div>
+      <div style="background:#f5f5f5;border-radius:8px;padding:10px;"><div style="font-size:10px;color:#666;">الفرع</div><div style="font-weight:700;">${s.branchName||'—'}</div></div>
+      <div style="background:#f5f5f5;border-radius:8px;padding:10px;"><div style="font-size:10px;color:#666;">المدة</div><div style="font-weight:700;">${dur}</div></div>
+      <div style="background:#f5f5f5;border-radius:8px;padding:10px;"><div style="font-size:10px;color:#666;">بداية الوردية</div><div style="font-weight:700;font-size:11px;">${s.startTime?new Date(s.startTime).toLocaleString('ar-EG'):'-'}</div></div>
+      <div style="background:#f5f5f5;border-radius:8px;padding:10px;"><div style="font-size:10px;color:#666;">نهاية الوردية</div><div style="font-weight:700;font-size:11px;">${s.endTime?new Date(s.endTime).toLocaleString('ar-EG'):'جارية'}</div></div>
+      <div style="background:#e8f5e9;border-radius:8px;padding:10px;border:1px solid #4caf50;"><div style="font-size:10px;color:#388e3c;">إجمالي المبيعات</div><div style="font-weight:900;color:#2e7d32;">${N(s.salesTotal||0)} EGP</div></div>
+    </div>
+    <!-- Sales Table -->
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:#333;">الفواتير المنجزة في هذه الوردية (${shiftSales.length})</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;border:1px solid #ddd;">
+      <thead><tr style="background:#1a6aff;color:#fff;">
+        <th style="padding:8px;">#</th><th style="padding:8px;">رقم الفاتورة</th><th style="padding:8px;">العميل</th><th style="padding:8px;">التاريخ</th><th style="padding:8px;">المبلغ</th><th style="padding:8px;">الدفع</th>
+      </tr></thead>
+      <tbody>${salesHtml}</tbody>
+    </table>
+  </div>`;
+  const body=document.getElementById('shift-view-body');
+  if(body)body.innerHTML=html;
+  openModal('modal-shift-view');
+}
+
+function exportShiftsExcel(){
+  if(!window.XLSX){toast('مكتبة Excel غير متاحة','error');return;}
+  const rows=Object.entries(S.shifts||{}).map(([id,s])=>({
+    'رقم الوردية':'#'+id.slice(-6).toUpperCase(),
+    'الفرع':s.branchName||'',
+    'الموظف':s.userName||'',
+    'بداية الوردية':s.startTime?new Date(s.startTime).toLocaleString('ar-EG'):'',
+    'نهاية الوردية':s.endTime?new Date(s.endTime).toLocaleString('ar-EG'):'جارية',
+    'المدة (دقيقة)':s.durationMin||0,
+    'عدد الفواتير':s.salesCount||0,
+    'إجمالي المبيعات':s.salesTotal||0,
+    'الحالة':s.status==='active'?'نشطة':'مغلقة'
+  }));
+  if(!rows.length){toast('لا توجد ورديات','info');return;}
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'الورديات');
+  XLSX.writeFile(wb,'shifts_'+today()+'.xlsx');
+  toast('تم تصدير الورديات');
+}
 
 const RETURN_REASONS={
   defective:'منتج معيب / تالف',
@@ -6447,6 +7150,50 @@ function viewReturn(r){
   openModal('modal-ret-view');
 }
 
+// الانتقال السريع لقسم المرتجعات من فاتورة محددة
+function openReturnFromInvoice(type, invoiceId){
+  // انتقل أولاً لصفحة المرتجعات
+  nav('returns');
+  // افتح مودال الإضافة بعد لحظة قصيرة (لضمان render الصفحة)
+  setTimeout(()=>{
+    retItems=[{prodId:'',name:'',qty:1,price:0}];
+    // ضبط الحقول الأساسية
+    document.getElementById('retf-date').value=today();
+    document.getElementById('retf-notes').value='';
+    document.getElementById('retf-reason').value='defective';
+    document.getElementById('retf-refund-method').value='cash';
+    // reset smart selects
+    ['retf-cust-wrap','retf-sup-wrap','retf-wh-wrap'].forEach(wid=>{
+      const wrap=document.getElementById(wid);if(!wrap)return;
+      const h=wrap.querySelector('input[type=hidden]');
+      const l=wrap.querySelector('.ss-label');
+      if(h)h.value='';
+      if(l){
+        if(wid==='retf-cust-wrap')l.textContent='-- اختر عميل --';
+        else if(wid==='retf-sup-wrap')l.textContent='-- اختر مورد --';
+        else l.textContent='-- اختر مخزن --';
+        l.style.color='var(--text3)';
+      }
+    });
+    fillCashboxSelects();
+    // اضبط النوع (sale → مرتجع مبيعات، purchase → مرتجع مشتريات)
+    const retType = type==='sale'?'sale':'purchase';
+    document.getElementById('retf-type').value=retType;
+    // اعد بناء قائمة الفواتير حسب النوع
+    onReturnTypeChange();
+    // حدد الفاتورة تلقائياً
+    const invSel=document.getElementById('retf-invoice-id');
+    if(invSel){
+      invSel.value=invoiceId;
+      // املأ البيانات من الفاتورة المختارة
+      onReturnInvoiceSelect();
+    }
+    openModal('modal-return');
+    // أظهر toast توضيحي
+    toast(`تم تحميل بيانات الفاتورة #${invoiceId.slice(-5).toUpperCase()} — راجع البيانات ثم احفظ`, 'info');
+  }, 150);
+}
+
 function exportReturnsExcel(){
   if(!window.XLSX){toast('مكتبة Excel غير متاحة','error');return;}
   const rows=Object.entries(S.returns||{}).map(([id,r])=>({
@@ -6476,7 +7223,7 @@ const IDB={
   db:null,DB_NAME:'ctg_offline',DB_VERSION:1,
   STORES:['products','customers','warehouses','sales','purchases',
           'expenses','suppliers','movements','categories',
-          'cashboxes','cashboxLog','users','settings','pending_queue','returns'],
+          'cashboxes','cashboxLog','users','settings','pending_queue','returns','branches','shifts'],
   open(){
     return new Promise((resolve,reject)=>{
       if(this.db){resolve(this.db);return;}
